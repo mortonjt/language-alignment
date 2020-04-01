@@ -84,16 +84,20 @@ with open(in_file, "rU") as input_handle:
         if fname in precomputed:
             print(f'{fname} is already computed')
         else:
-            print(record.id)
-            tokens = vocab.tokenize(' '.join(list(s)), add_eos=False,
-                                    add_double_eos=False)
-            tokens = vocab.convert_to_tensor(tokens)
-            encoded_data = tokens.unsqueeze(1).cuda()
-            encoded_data = encoded_data.to(device)
-            res, mems = model(encoded_data)
+            try:
+                print(record.id)
+                tokens = vocab.tokenize(' '.join(list(s)), add_eos=False,
+                                        add_double_eos=False)
+                tokens = vocab.convert_to_tensor(tokens)
+                encoded_data = tokens.unsqueeze(1).cuda()
+                encoded_data = encoded_data.to(device)
+                res, mems = model(encoded_data)
 
-            embed = res.detach().cpu().numpy().squeeze()
-            np.savez_compressed(fname, embed=embed,
-                                sequence=np.array(s))
+                embed = res.detach().cpu().numpy().squeeze()
+                np.savez_compressed(fname, embed=embed,
+                                    sequence=np.array(s))
 
-            del tokens
+                del tokens
+            except:
+                print(record.id, ' had some problems.')
+                continue

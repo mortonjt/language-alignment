@@ -22,18 +22,20 @@ DATADIR=/mnt/ceph/users/jmorton/icml-final-submission
 in_file=$DATADIR/data/raw/combined.fasta
 #in_file=$DATADIR/data/pfam/pfam_benchmark_seqs.fasta
 
-epoch=5
-in_file=../results/permute.fasta
-model_path=$DATADIR/data/attn/checkpoint_uniref90.pt
-results_dir=$DATADIR/results/embeddings/attn/epoch${epoch}/
-mkdir -p $results_dir
-python scripts/extract_attention.py $in_file $model_path $results_dir
-echo "Epoch ${epoch} done."
-
 epoch=uniref90
 in_file=../results/permute.fasta
+in_file=$DATADIR/data/raw/permuted.fasta
 model_path=$DATADIR/data/attn/checkpoint_uniref90.pt
-results_dir=$DATADIR/results/embeddings/attn/epoch${epoch}/
+#results_dir=$DATADIR/results/embeddings/attn/epoch${epoch}/
+results_dir=results/permute_roberta_embeds
 mkdir -p $results_dir
-python scripts/extract_attention.py $in_file $model_path $results_dir
+python scripts/extract_roberta.py $in_file $model_path $results_dir
 echo "Epoch ${epoch} done."
+
+# epoch=5
+# in_file=../results/permute.fasta
+# model_path=$DATADIR/data/attn/checkpoint_uniref90.pt
+# results_dir=$DATADIR/results/embeddings/attn/epoch${epoch}/
+# mkdir -p $results_dir
+# python scripts/extract_attention.py $in_file $model_path $results_dir
+# echo "Epoch ${epoch} done."

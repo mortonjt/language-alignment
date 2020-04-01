@@ -21,8 +21,9 @@ DATADIR=/mnt/ceph/users/jmorton/icml-final-submission
 in_file=data/raw/combined.fasta
 #in_file=$DATADIR/data/pfam/pfam_benchmark_seqs.fasta
 epoch=5
-in_file=../results/permute.fasta
+in_file=$DATADIR/data/raw/permuted.fasta
 model_path=$DATADIR/data/elmo/model_epoch_${epoch}.hdf5
-results_dir=../results/permute_elmo_embeds
+results_dir=results/permute_elmo_embeds
+mkdir -p $results_dir
 python scripts/extract_elmo.py $in_file $model_path $results_dir
 echo "Epoch ${epoch} done."
