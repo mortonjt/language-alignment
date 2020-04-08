@@ -18,6 +18,9 @@ in_directory = sys.argv[1]
 triples_file = sys.argv[2]
 out_file = sys.argv[3]
 
+if len(sys.argv) >= 4:
+    elmo = bool(sys.argv[4])
+
 L = 768
 N = 1022
 results = []
@@ -53,7 +56,11 @@ with open(out_file, 'w') as output_handle:
             except:
                 print(r'Could not parse {prot_x} {prot_y} {prot_z}')
                 continue
-            if len(sx) == x.shape[0]:
+            if elmo:
+                x = np.mean(x, axis=1).ravel()
+                y = np.mean(y, axis=1).ravel()
+                z = np.mean(z, axis=1).ravel()
+            elif len(sx) == x.shape[0]:
                 x = np.mean(x, axis=0)
                 y = np.mean(y, axis=0)
                 z = np.mean(z, axis=0)
@@ -63,6 +70,7 @@ with open(out_file, 'w') as output_handle:
                 z = np.mean(z[1:-1, :], axis=0)
 
             # Euclidean
+
             dexy = euclidean(x, y)
             dexz = euclidean(x, z)
             # Cosine
