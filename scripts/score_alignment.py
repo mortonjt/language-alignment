@@ -9,13 +9,24 @@ from score import max_score, domain_score
 import sys
 from Bio import SeqIO
 
-print(sys.argv)
-in_directory = sys.argv[1]
-fasta_file = sys.argv[2]
-pair_file = sys.argv[3]
-dom_file = sys.argv[4]
-out_file = sys.argv[5]
+# print(sys.argv)
+# in_directory = sys.argv[1]
+# fasta_file = sys.argv[2]
+# pair_file = sys.argv[3]
+# dom_file = sys.argv[4]
+# out_file = sys.argv[5]
 
+parser = argparse.ArgumentParser(description='Description of your program')
+parser.add_argument('-i','--input-directory', help='Input directory', required=True)
+parser.add_argument('-p','--pairs', help='PFam domain pairs', required=True)
+parser.add_argument('-a','--alignments', help='Table of alignments', required=True)
+parser.add_argument('-z','--zero-based', help='Zero based indexing or 1 based',
+                    required=False, default=True, type=bool)
+parser.add_argument('-o','--outdir', help='Output directory of edges', required=True)
+args = parser.parse_args()
+
+in_directory = args.input_directory
+zero_based = args.zero_based
 # in_directory = "../results/pw_elmo_domains/"
 # fasta_file = "../../results/swissprot2.fasta"
 # pair_file = "../data/domains/domain_pairs.txt"
@@ -41,7 +52,7 @@ df['length'] = df.apply(lambda x: x['end'] - x['start'], axis=1)
 domdict = dict(list(df.groupby('protein')))
 
 # load fasta seqs
-seqdict = {x.id : str(x.seq) for x in SeqIO.parse(fasta_file, "fasta")}
+#seqdict = {x.id : str(x.seq) for x in SeqIO.parse(fasta_file, "fasta")}
 print(len(fnames), len(seqdict), len(domdict))
 with open(out_file, 'w') as outhandle:
     for fname in fnames:
@@ -52,11 +63,11 @@ with open(out_file, 'w') as outhandle:
         prot_x, prot_y = pairs.loc[qsd[fname], 0], pairs.loc[qsd[fname], 1]
         dom_x, dom_y = domdict[prot_x], domdict[prot_y]
         edges_xy = pd.read_csv(fname, index_col=0)
-        edges_xy = edges_xy + 1 # convert to 1 based indexing
-        seq_x, seq_y = seqdict[prot_x], seqdict[prot_y]
-        res = domain_score(edges_xy, seq_x, dom_x, seq_y, dom_y)
+        if zero_based:
+            edges_xy = edges_xy + 1 # convert to 1 based indexing
+        #seq_x, seq_y = seqdict[prot_x], seqdict[prot_y]
+        res = domain_score(edges_xy, dom_x, dom_y)
         res = res.sum(axis=0)
-        tp, fp = res['tp'], res['fp']
-        mx = max_score(prot_x, prot_y, domdict)
+        tp, fp, mx = res['tp'], res['fp'], res['len']
         line = f'{prot_x}\t{prot_y}\t{tp}\t{fp}\t{mx}\n'
         outhandle.write(line)
