@@ -125,7 +125,9 @@ with open(in_file, "rU") as input_handle:
 
     for record in SeqIO.parse(input_handle, "fasta"):
         s = str(record.seq)
-        if len(s) > N: continue
+        #if len(s) > N: continue
+        if len(s) > N: # truncate
+            s = s[:N]
         fname = f'{results_dir}/{record.id}.npz'
         if fname in precomputed:
             print(f'{fname} is already computed')

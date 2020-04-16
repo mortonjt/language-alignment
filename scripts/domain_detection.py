@@ -18,6 +18,8 @@ import sys
 in_directory = sys.argv[1]
 triples_file = sys.argv[2]
 out_file = sys.argv[3]
+if len(sys.argv) >= 4:
+    elmo = bool(sys.argv[4])
 
 triplets = pd.read_table(triples_file, index_col=None)
 
@@ -42,7 +44,10 @@ with open(out_file, 'w') as outfile:
         emb = data['embed']
         data.close()
         r1, r2, r3 = map(lambda x: x - 1, row[['r1','r2','r3']])  # 0-index it
-        er1, er2, er3 = emb[r1], emb[r2], emb[r3]
+        if elmo:
+            er1, er2, er3 = emb[:, r1, :].ravel(), emb[:, r2, :].ravel(), emb[:, r3, :].ravel()
+        else:
+            er1, er2, er3 = emb[r1], emb[r2], emb[r3]
 
         row['euclidean_r1r2'] = euclidean(er1, er2)
         row['euclidean_r1r3'] = euclidean(er1, er3)
