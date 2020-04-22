@@ -33,7 +33,7 @@ setup(name='language-alignment',
       install_requires=[
           'numpy',
           'scipy',
-          'Biopython'
+          'biopython'
       ],
       classifiers=classifiers,
       package_data={},
