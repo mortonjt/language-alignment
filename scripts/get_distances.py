@@ -56,26 +56,26 @@ with open(out_file, 'w') as output_handle:
             except:
                 print(r'Could not parse {prot_x} {prot_y} {prot_z}')
                 continue
+
             if elmo:
-                x = np.mean(x, axis=1).ravel()
-                y = np.mean(y, axis=1).ravel()
-                z = np.mean(z, axis=1).ravel()
+                x_ = np.mean(x, axis=1).ravel()
+                y_ = np.mean(y, axis=1).ravel()
+                z_ = np.mean(z, axis=1).ravel()
             elif len(sx) == x.shape[0]:
-                x = np.mean(x, axis=0)
-                y = np.mean(y, axis=0)
-                z = np.mean(z, axis=0)
+                x_ = np.mean(x, axis=0)
+                y_ = np.mean(y, axis=0)
+                z_ = np.mean(z, axis=0)
             else:
-                x = np.mean(x[1:-1, :], axis=0)
-                y = np.mean(y[1:-1, :], axis=0)
-                z = np.mean(z[1:-1, :], axis=0)
+                x_ = np.mean(x[1:-1, :], axis=0)
+                y_ = np.mean(y[1:-1, :], axis=0)
+                z_ = np.mean(z[1:-1, :], axis=0)
 
             # Euclidean
-
-            dexy = euclidean(x, y)
-            dexz = euclidean(x, z)
-            # Cosine
-            dcxy = cosine(x, y)
-            dcxz = cosine(x, z)
+            dexy = euclidean(x_, y_)
+            dexz = euclidean(x_, z_)
+            # CCA
+            dcxy = distance(x, y, mode='cca')
+            dcxz = distance(x, z, mode='cca')
 
             output_handle.write(f'{prot_x}\t{prot_y}\t{prot_z}\t'
                                 f'{dexy}\t{dexz}\t{dcxy}\t{dcxz}\n')

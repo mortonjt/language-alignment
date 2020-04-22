@@ -10,8 +10,8 @@ source ~/venvs/transformers-torch/bin/activate
 results_dir=/mnt/home/jmorton/research/gert/icml2020/language-alignment/results/MSA
 embeds=$results_dir/elmo_embeds
 metadata=$results_dir/msa_metadata.txt
-out=$results_dir/elmo_counts_test.txt
-python scripts/score_msa.py $embeds $metadata $out False euclidean
+out=$results_dir/elmo_counts_cca.txt
+python scripts/score_msa.py $embeds $metadata $out False cca
 
 # embeds=$results_dir/seqvec
 # metadata=$results_dir/msa_metadata.txt
@@ -23,7 +23,7 @@ python scripts/score_msa.py $embeds $metadata $out False euclidean
 # metadata=$results_dir/msa_metadata.txt
 # out=$results_dir/roberta_xs_counts_cca.txt
 # python scripts/score_msa.py $embeds $metadata $out False cca
-
+#
 # results_dir=/mnt/home/jmorton/research/gert/icml2020/language-alignment/results/MSA
 # embeds=~/ceph/embeddings/pfam-families/roberta-gert
 # metadata=$results_dir/msa_metadata.txt

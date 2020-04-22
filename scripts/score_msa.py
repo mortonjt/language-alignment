@@ -8,10 +8,11 @@ import glob
 import os
 import re
 import site
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-site.addsitedir(os.path.join(base_path, 'src'))
-from score import domain_score
-from alignment import cca_solve
+#base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#site.addsitedir(os.path.join(base_path, 'src'))
+#from score import domain_score
+from language_alignment.alignment import cca_solve
+from language_alignment.score import distance
 
 
 embed_directory = sys.argv[1]
@@ -24,21 +25,6 @@ if mode is None:
 if transpose is None:
     transpose = False
 
-def distance(x, y):
-    if transpose:
-        X = x.T
-        Y = y.T
-
-    if mode == 'euclidean':
-        xc = X.mean(axis=0)
-        yc = Y.mean(axis=0)
-        return euclidean(xc, yc)
-
-    elif mode == 'cca':
-        r2 = cca_solve(X, Y)[-1]
-        return 1 - r2
-
-
 def get_distances(path, names):
     dists = []
     for j in range(len(names)):
@@ -49,7 +35,7 @@ def get_distances(path, names):
                 nj = os.path.join(path, names[j])
                 x = np.load(ni)['embed']
                 y = np.load(nj)['embed']
-                r = (names[i], names[j], distance(x, y))
+                r = (names[i], names[j], distance(x, y, mode, transpose))
                 dists.append(r)
             except:
                 r = (names[i], names[j], 100)
@@ -66,12 +52,14 @@ def count(dm):
     dm = dm.set_index(['from', 'to'])
     idx = list(zip(within_names, outside_names))
     c = 0
+    total = 0
     for w in list(within_names.values):
         for o in list(outside_names.values):
             dw = np.unique(dm.loc[tuple(w)].distance)
             do = np.unique(dm.loc[tuple(o)].distance)
             c+= int(dw < do)
-    return c / (len(within_names) * len(outside_names))
+            total += 1
+    return c / total
 
 
 metadata = pd.read_table(msa_metadata, index_col=0, sep='\s+')
@@ -84,8 +72,9 @@ dm = {}
 # calculate distances
 for name, group in metadata.groupby('family'):
     print(name)
-    within = list(group.loc[group['within'], 'from'])
-    outside = list(group.loc[group['outside'], 'to'])
+    within = list(group.loc[group['within'], 'from'].unique())
+    outside = list(group.loc[group['outside'], 'to'].unique())
+    if len(within) <= 2: continue
     kf = get_distances(embed_directory, names=within + outside)
     kf['within'] = kf.apply(lambda x: x['from'] in within and x['to'] in within, axis=1)
     kf['outside'] = kf.apply(lambda x: x['from'] in within and x['to'] in outside, axis=1)

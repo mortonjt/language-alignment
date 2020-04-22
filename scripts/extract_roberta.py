@@ -11,8 +11,9 @@ import glob
 in_file = sys.argv[1]
 model_path = sys.argv[2]
 results_dir = sys.argv[3]
-
-device = 'cuda:0'
+device = sys.argv[4]
+if device is None:
+    device = 'cuda:0'
 #path='data/attn'
 path = os.path.dirname(model_path)
 model = os.path.basename(model_path)
@@ -20,9 +21,9 @@ print(path, model)
 data_dir = f'{path}/data-bin'
 dict_path = '/mnt/home/mgt/roberta_checkpoints'
 roberta = RobertaModel.from_pretrained(
-    path, model, data_dir,
-    gpt2_encoder_json=f'{path}/peptide_bpe/encoder.json',
-    gpt2_vocab_bpe=f'{path}/peptide_bpe/vocab.bpe')
+    path, model, # data_dir,
+    gpt2_encoder_json=f'peptide_bpe/encoder.json',
+    gpt2_vocab_bpe=f'peptide_bpe/vocab.bpe')
 roberta.to(device)
 
 for p in roberta.parameters():

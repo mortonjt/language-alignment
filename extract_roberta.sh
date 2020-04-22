@@ -22,15 +22,23 @@ DATADIR=/mnt/ceph/users/jmorton/icml-final-submission
 in_file=$DATADIR/data/raw/combined.fasta
 #in_file=$DATADIR/data/pfam/pfam_benchmark_seqs.fasta
 
-epoch=uniref90
-in_file=../results/permute.fasta
-in_file=$DATADIR/data/raw/permuted.fasta
-model_path=$DATADIR/data/attn/checkpoint_uniref90.pt
-#results_dir=$DATADIR/results/embeddings/attn/epoch${epoch}/
-results_dir=results/permute_roberta_embeds
-mkdir -p $results_dir
-python scripts/extract_roberta.py $in_file $model_path $results_dir
-echo "Epoch ${epoch} done."
+
+for model in `cat roberta_models.txt`
+do
+    in_file=/mnt/home/jmorton/research/gert/icml2020/language-alignment/data/scop/scop_subset.fasta
+    name=$(basename $(dirname $model))
+    results_dir=~/ceph/embeddings/distances/$name
+    mkdir -p $results_dir
+    #python scripts/extract_roberta.py $in_file $model $results_dir
+    sbatch -p genx --wrap "python scripts/extract_roberta.py $in_file $model $results_dir cpu"
+
+    in_file=/mnt/home/jmorton/ceph/seq-databases/pfam/families/PF.txt
+    sbatch -p genx --wrap "python scripts/extract_roberta.py $in_file $model $results_dir cpu"
+
+    echo "Model ${model} done."
+done
+
+
 
 # epoch=5
 # in_file=../results/permute.fasta

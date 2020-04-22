@@ -1,6 +1,7 @@
 from functools import reduce
 import numpy as np
 import pandas as pd
+from language_alignment.alignment import cca_solve
 
 
 def select_f(x):
@@ -124,3 +125,18 @@ def is_interval(start, end, x):
     if x > start and x < end:
         return True
     return False
+
+
+def distance(x, y, mode='euclidean', transpose=False):
+    if transpose:
+        X = x.T
+        Y = y.T
+
+    if mode == 'euclidean':
+        xc = X.mean(axis=0)
+        yc = Y.mean(axis=0)
+        return euclidean(xc, yc)
+
+    elif mode == 'cca':
+        r2 = cca_solve(X, Y)[-1]
+        return 1 - r2

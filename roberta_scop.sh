@@ -5,7 +5,7 @@
 #SBATCH --mail-user=jmorton@flatironinstitute.org
 #SBATCH --time=60:00:00
 #SBATCH -N 1
-#SBATCH -p ccb
+#SBATCH -p genx
 
 
 module load cuda/10.1.105_418.39

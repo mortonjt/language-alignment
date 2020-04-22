@@ -15,10 +15,10 @@ import networkx as nx
 import site
 from functools import reduce
 
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-site.addsitedir(os.path.join(base_path, 'src'))
+#base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#site.addsitedir(os.path.join(base_path, 'src'))
 
-from alignment import cca_solve, cca_align, filter_by_locality
+from language_alignment.alignment import cca_solve, cca_align, filter_by_locality
 
 
 #fasta_file = '../data/combined.fasta'
