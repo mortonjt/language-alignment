@@ -30,10 +30,10 @@ do
     results_dir=~/ceph/embeddings/distances/$name
     mkdir -p $results_dir
     #python scripts/extract_roberta.py $in_file $model $results_dir
-    sbatch -p genx --wrap "python scripts/extract_roberta.py $in_file $model $results_dir cpu"
+    sbatch -p gpu --gres=gpu:v100-32gb:01 --wrap "python scripts/extract_roberta.py $in_file $model $results_dir cpu"
 
     in_file=/mnt/home/jmorton/ceph/seq-databases/pfam/families/PF.txt
-    sbatch -p genx --wrap "python scripts/extract_roberta.py $in_file $model $results_dir cpu"
+    sbatch -p gpu --gres=gpu:v100-32gb:01 --wrap "python scripts/extract_roberta.py $in_file $model $results_dir cpu"
 
     echo "Model ${model} done."
 done

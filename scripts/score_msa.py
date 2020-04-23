@@ -1,5 +1,6 @@
 import sys
 from scipy.spatial.distance import euclidean, squareform
+import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,15 +16,33 @@ from language_alignment.alignment import cca_solve
 from language_alignment.score import distance
 
 
-embed_directory = sys.argv[1]
-msa_metadata = sys.argv[2]
-out_file = sys.argv[3]
-transpose = bool(sys.argv[4])
-mode = sys.argv[5]
-if mode is None:
-    mode = 'euclidean'
-if transpose is None:
-    transpose = False
+
+parser = argparse.ArgumentParser(description='Description of your program')
+parser.add_argument('-i','--input-directory', help='Input directory', required=True)
+parser.add_argument('-m','--metadata', help='Triples', required=True)
+parser.add_argument('-r','--transpose', help='Transpose embeddings',
+                    required=False, default=False, type=bool)
+parser.add_argument('-d','--distance', help='Distance metric',
+                    required=False, default='cca', type=str)
+parser.add_argument('-o','--out_file', help='Output directory of edges', required=True)
+args = parser.parse_args()
+
+
+
+embed_directory = args.input_directory
+msa_metadata = args.metadata
+out_file = args.out_file
+mode = args.distance
+transpose = args.transpose
+
+#TODO fix above
+
+# transpose = bool(sys.argv[4])
+# mode = sys.argv[5]
+# if mode is None:
+#     mode = 'euclidean'
+# if transpose is None:
+#     transpose = False
 
 def get_distances(path, names):
     dists = []

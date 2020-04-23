@@ -131,6 +131,9 @@ def distance(x, y, mode='euclidean', transpose=False):
     if transpose:
         X = x.T
         Y = y.T
+    else:
+        X = x.copy()
+        Y = y.copy()
 
     if mode == 'euclidean':
         xc = X.mean(axis=0)
@@ -138,5 +141,5 @@ def distance(x, y, mode='euclidean', transpose=False):
         return euclidean(xc, yc)
 
     elif mode == 'cca':
-        r2 = cca_solve(X, Y)[-1]
+        r2 = cca_solve(X, Y, n_components=30)[-1]
         return 1 - r2
