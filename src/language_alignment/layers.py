@@ -8,6 +8,14 @@ This file contains 3 different alignment layers
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+
+class MeanAligner(object):
+    def __call__(self, z_x, z_y):
+        mean_x = z_x.mean(axis=-1)
+        mean_y = z_y.mean(axis=-1)
+        return torch.norm(mean_x - mean_y)
 
 
 class L1(nn.Module):
@@ -20,11 +28,9 @@ class L2(nn.Module):
         return -torch.sum((x.unsqueeze(1) - y)**2, -1)
 
 
-class SSALayer(nn.Module):
-    def __init__(self, beta_init, compare=L1()):
-        self.theta = nn.Parameter(torch.ones(1, n_classes - 1))
-        self.beta = nn.Parameter(torch.zeros(n_classes - 1) +
-                                 beta_init)
+class SSAaligner(nn.Module):
+    def __init__(self, compare=L1()):
+        super(SSAaligner, self).__init__()
         self.compare = compare
 
     def __call__(self, z_x, z_y):
