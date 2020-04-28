@@ -1,7 +1,7 @@
 import torch
 import warnings
-from binding_prediction.protein import ProteinSequence
-from binding_prediction.utils import onehot
+from language_alignment.protein import ProteinSequence
+from language_alignment.util import onehot
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)

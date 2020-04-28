@@ -1,4 +1,5 @@
 import inspect
+import numpy as np
 import os
 
 
@@ -55,3 +56,10 @@ def check_random_state(seed):
         return seed
     raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
                      ' instance' % seed)
+
+
+def onehot(idx, len):
+    idx = np.array(idx)  # make sure this is an array
+    z = np.array([0 for _ in range(len)])
+    z[idx] = 1
+    return z

@@ -27,7 +27,7 @@ class SSALayer(nn.Module):
                                  beta_init)
         self.compare = compare
 
-    def forward(self, z_x, z_y):
+    def __call__(self, z_x, z_y):
         s = self.compare(z_x, z_y)
 
         a = F.softmax(s, 1)
@@ -42,12 +42,15 @@ class RankingLayer(nn.Module):
     def __init__(self, input_size, emb_dim):
         """ Initialize model parameters for Siamese network.
 
+        This is another forum of triplet loss.
+
         Parameters
         ----------
         input_size: int
             Input dimension size
         emb_dim: int
             Embedding dimension for both datasets
+
         Note
         ----
         This implicitly assumes that the embedding dimension for
@@ -78,6 +81,7 @@ class RankingLayer(nn.Module):
         pos_out = self.output(pos)
         neg_out = self.output(neg)
         diff = pos - neg_out
-        score = F.logsigmoid(diff)
-        losses = sum(score)
+        #score = F.logsigmoid(diff)
+        #losses = sum(score)
+        losses = sum(torch.norm(diff))
         return -1 * losses
