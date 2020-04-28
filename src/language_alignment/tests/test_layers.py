@@ -1,10 +1,10 @@
 import unittest
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
-from language_alignment.layers import MeanAligner, SSAaligner
+from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 
 
-class TestSSALayer(unittest.TestCase):
+class TestSSAaligner(unittest.TestCase):
 
     def setUp(self):
         cls, path = pretrained_language_models['onehot']
@@ -16,16 +16,19 @@ class TestSSALayer(unittest.TestCase):
         self.model('ABCABCABCABC', 'SEQSEQSEQS')
 
 
-class TestCCALayer(unittest.TestCase):
+class TestCCAaligner(unittest.TestCase):
 
     def setUp(self):
-        pass
+        cls, path = pretrained_language_models['onehot']
+        align_fun = CCAaligner(input_dim=22, embed_dim=5, max_len=10)
+        self.model = AlignmentModel(align_fun)
+        self.model.load_language_model(cls, path, device='cpu')
 
     def test_cca(self):
-        pass
+        self.model('ABCABCABCA', 'SEQSEQSEQS')
 
 
-class TestFixedLayer(unittest.TestCase):
+class TestMeanAligner(unittest.TestCase):
 
     def setUp(self):
         cls, path = pretrained_language_models['onehot']

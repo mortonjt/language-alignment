@@ -9,6 +9,7 @@ This file contains 3 different alignment layers
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from language_alignment.losses import CCAloss
 
 
 class MeanAligner(object):
@@ -44,50 +45,26 @@ class SSAaligner(nn.Module):
         return c
 
 
-class RankingLayer(nn.Module):
-    def __init__(self, input_size, emb_dim):
-        """ Initialize model parameters for Siamese network.
+class CCAaligner(nn.Module):
+    def __init__(self, input_dim=512, embed_dim=64, max_len=1024):
+        super(CCAaligner, self).__init__()
+        self.model_x = nn.Linear(input_dim, embed_dim)
+        self.model_y = nn.Linear(input_dim, embed_dim)
+        self.loss = CCAloss(embed_dim)
+        self.input_dim = input_dim
+        self.embed_dim = embed_dim
+        self.max_len = max_len
 
-        This is another forum of triplet loss.
-
-        Parameters
-        ----------
-        input_size: int
-            Input dimension size
-        emb_dim: int
-            Embedding dimension for both datasets
-
-        Note
-        ----
-        This implicitly assumes that the embedding dimension for
-        both datasets are the same.
+    def __call__(self, z_x, z_y):
         """
-        # See here: https://adoni.github.io/2017/11/08/word2vec-pytorch/
-        super(RankingLayer, self).__init__()
-        self.input_size = input_size
-        self.emb_dimension = emb_dim
-        self.output = nn.Linear(input_size, emb_dim)
-        self.init_emb()
+        Notes
+        -----
+        Assumes that the first dimension of z_x and z_y
+        corresponds to the sequence length and the
+        second dimensions corresponds to the embedding dimension.
 
-    def init_emb(self):
-        initstd = 1 / math.sqrt(self.emb_dimension)
-        self.output.weight.data.normal_(0, initstd)
-
-    def forward(self, pos, neg):
+        The input *must* be padded.
         """
-        Parameters
-        ----------
-        pos : torch.Tensor
-           Positive shared representation vector
-        neg : torch.Tensor
-           Negative shared representation vector(s).
-           There can be multiple negative examples (~5 according to NCE).
-        """
-        losses = 0
-        pos_out = self.output(pos)
-        neg_out = self.output(neg)
-        diff = pos - neg_out
-        #score = F.logsigmoid(diff)
-        #losses = sum(score)
-        losses = sum(torch.norm(diff))
-        return -1 * losses
+        x = self.model_x(z_x)
+        y = self.model_y(z_y)
+        return self.loss(x, y)
