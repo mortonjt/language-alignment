@@ -161,8 +161,7 @@ class AlignmentDataset(Dataset):
         Parameters
         ----------
         pairs: np.array of str
-            Pairs of proteins that are experimentally validated to have
-            an interaction.
+            Pairs of proteins that align.
         sampler : NegativeSampler
             Model for drawing negative samples for training
         num_neg : int
@@ -253,5 +252,3 @@ class SubstituteSwap(object):
 
     def __call(self, x):
         pass
-
-

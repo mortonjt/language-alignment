@@ -93,51 +93,22 @@ class CCAloss(object):
         return -corr
 
 
-class RankingLoss(nn.Module):
-    def __init__(self, input_size, emb_dim):
-        """ Initialize model parameters for Siamese network.
+class TripletLoss:
+    """ From FaceNet
+    https://arxiv.org/pdf/1503.03832.pdf"""
+    def __call__(self, xy, xz, alpha=0.1):
+        dxy = torch.norm(xy).pow(2)
+        dxz = torch.norm(xz).pow(2)
+        loss = dxy - dxz + alpha
+        return torch.max(loss, 0)
 
-        This is another forum of triplet loss.
-
-        Parameters
-        ----------
-        input_size: int
-            Input dimension size
-        emb_dim: int
-            Embedding dimension for both datasets
-
-        Note
-        ----
-        This implicitly assumes that the embedding dimension for
-        both datasets are the same.
-        """
-        # See here: https://adoni.github.io/2017/11/08/word2vec-pytorch/
-        super(RankingLayer, self).__init__()
-        self.input_size = input_size
-        self.emb_dimension = emb_dim
-        self.output = nn.Linear(input_size, emb_dim)
-        self.init_emb()
-
-    def init_emb(self):
-        initstd = 1 / math.sqrt(self.emb_dimension)
-        self.output.weight.data.normal_(0, initstd)
-
-    def forward(self, pos, neg):
-        """
-        Parameters
-        ----------
-        pos : torch.Tensor
-           Positive shared representation vector
-        neg : torch.Tensor
-           Negative shared representation vector(s).
-           There can be multiple negative examples (~5 according to NCE).
-        """
-        losses = 0
-        pos_out = self.output(pos)
-        neg_out = self.output(neg)
-        diff = pos - neg_out
+class RankingLoss:
+    """ From Bayesian Personalized Ranking
+    https://arxiv.org/pdf/1205.2618.pdf
+    """
+    def __call__(self, xy, xz):
+        diff = xy - xz
         #score = F.logsigmoid(diff)
         #losses = sum(score)
         losses = sum(torch.norm(diff))
         return -1 * losses
-
