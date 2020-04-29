@@ -1,4 +1,5 @@
 import inspect
+import numpy as np
 import os
 
 
@@ -32,3 +33,33 @@ def get_data_path(fn, subfolder='data'):
     path = os.path.dirname(os.path.abspath(callers_filename))
     data_path = os.path.join(path, subfolder, fn)
     return data_path
+
+
+def check_random_state(seed):
+    """ Turn seed into a np.random.RandomState instance.
+    Parameters
+    ----------
+    seed : None | int | instance of RandomState
+        If seed is None, return the RandomState singleton used by np.random.
+        If seed is an int, return a new RandomState instance seeded with seed.
+        If seed is already a RandomState instance, return it.
+        Otherwise raise ValueError.
+    Note
+    ----
+    This is from sklearn
+    """
+    if seed is None or seed is np.random:
+        return np.random.mtrand._rand
+    if isinstance(seed, numbers.Integral):
+        return np.random.RandomState(seed)
+    if isinstance(seed, np.random.RandomState):
+        return seed
+    raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
+                     ' instance' % seed)
+
+
+def onehot(idx, len):
+    idx = np.array(idx)  # make sure this is an array
+    z = np.array([0 for _ in range(len)])
+    z[idx] = 1
+    return z
