@@ -1,4 +1,4 @@
-from language_alignment.language_model import Elmo, OneHot
+from language_alignment.language_model import Elmo, OneHot, Roberta
 import os
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -10,5 +10,6 @@ def get_model(path):
 
 pretrained_language_models = {
     'elmo': (Elmo, get_model('lstm_lm.hdf5')),
-    'onehot': (OneHot, None)
+    'onehot': (OneHot, None),
+    'roberta': (Roberta, None)
 }

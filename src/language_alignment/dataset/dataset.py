@@ -7,45 +7,64 @@ from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_
 from language_alignment.util import check_random_state
 
 
-def collate_alignment_pairs(batch, device):
+def seq2onehot(seq):
+    """ Create 21-dim 1-hot embedding """
+    # chars = ['R', 'X', 'S', 'G', 'W', 'I', 'Q', 'A', 'T', 'V', 'K', 'Y',
+    #          'C', 'N', 'L', 'F', 'D', 'M', 'P', 'H', 'E', '-']
+    # vocab_size = len(chars)
+    # vocab_embed = dict(zip(chars, range(vocab_size)))
+
+    vocab_embed = {
+        '<start>': 0, 'A': 5, 'B': 25, 'C': 22, 'D': 13,
+        'E': 9, 'F': 18, 'G': 7, 'H': 20, 'I': 12, 'J': 3,
+        'K': 14, 'L': 4, 'M': 21, 'N': 16, 'O': 28, 'P': 15,
+        'Q': 17, 'R': 10, 'S': 6, 'T': 11, 'U': 26, 'V': 8,
+        'W': 23, 'X': 24, 'Y': 19, 'Z': 27, '.': 3, '<end>': 2}
+    vocab_size = len(vocab_embed)
+    # Convert vocab to one-hot
+    vocab_one_hot = np.eye(vocab_size)
+    seqs_x = [vocab_embed[v] for v in seq]
+    #seqs_x = [vocab_one_hot[j, :] for j in embed_x]
+    # ignore the ends for now
+    # seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
+    return torch.Tensor(np.array(seqs_x)).long()
+
+def collate_alignment_pairs(batch, device, max_len=1024):
     """
     Padds matrices of variable length
     """
     # get sequence lengths
     lengths = torch.tensor(
-        [max(t[0].shape[0], t[1].shape[0], t[2].shape[0])
-             for t in batch]).to(device)
-    max_len = max(lengths)
-    S1_padded = torch.zeros((len(batch), max_len))
-    S2_padded = torch.zeros((len(batch), max_len))
-    S3_padded = torch.zeros((len(batch), max_len))
+        [(t[0].shape[0], t[1].shape[0], t[2].shape[0])
+             for t in batch])
+    lengths = lengths.to(device)
+    ml = lengths.max()
+    S1_padded = torch.zeros((len(batch), ml))
+    S2_padded = torch.zeros((len(batch), ml))
+    S3_padded = torch.zeros((len(batch), ml))
     S1_padded[:, :] = 1
     S2_padded[:, :] = 1
     S3_padded[:, :] = 1
 
     # padd (double check for dim issues)
     for i in range(len(batch)):
-        S1_padded[i][:lengths[i]] = batch[i][0]
-        S2_padded[i][:lengths[i]] = batch[i][1]
-        S3_padded[i][:lengths[i]] = batch[i][2]
+        S1_padded[i][:lengths[i][0]] = batch[i][0]
+        S2_padded[i][:lengths[i][1]] = batch[i][1]
+        S3_padded[i][:lengths[i][2]] = batch[i][2]
 
-    return (A_padded, S_padded)
+    if S1_padded.shape[1] > max_len:
+        S1_padded = S1_padded[:, :max_len]
+    if S2_padded.shape[1] > max_len:
+        S2_padded = S2_padded[:, :max_len]
+    if S3_padded.shape[1] > max_len:
+        S3_padded = S3_padded[:, :max_len]
 
-
-class NegativeSampler(object):
-    """ Sampler for negative data """
-    def __init__(self, seqs):
-        self.seqs = seqs
-
-    def draw(self):
-        """ Draw at random. """
-        i = np.random.randint(0, len(self.seqs))
-        return self.seqs[i].seq
+    return S1_padded.long(), S2_padded.long(), S3_padded.long()
 
 
 class AlignmentDataset(Dataset):
     """ Dataset for training and testing. """
-    def __init__(self, pairs, sampler=None, num_neg=10, seed=0):
+    def __init__(self, pairs, seqs):
         """ Read in pairs of proteins
 
         Parameters
@@ -54,8 +73,6 @@ class AlignmentDataset(Dataset):
             Pairs of proteins that align.
         sampler : NegativeSampler
             Model for drawing negative samples for training
-        num_neg : int
-            Number of negative samples
         sort : bool
             Specifies if the pairs should be sorted by
             protein id1 then by taxonomy.
@@ -63,16 +80,11 @@ class AlignmentDataset(Dataset):
             Random seed
         """
         self.pairs = pairs
-        self.num_neg = num_neg
-        self.state = check_random_state(seed)
-        self.sampler = sampler
-        if sampler is None:
-            self.num_neg = 1
+        self.seqs = seqs
 
     def random_peptide(self):
         if self.sampler is None:
             raise ("No negative sampler specified")
-
         return self.sampler.draw()
 
     def __len__(self):
@@ -84,6 +96,7 @@ class AlignmentDataset(Dataset):
         ----------
         i : int
            Index of item
+
         Returns
         -------
         gene : torch.Tensor
@@ -94,12 +107,16 @@ class AlignmentDataset(Dataset):
            Encoded representation of protein that probably doesn't
            interact with `gene`.
         """
-        gene = self.pairs[i, 0]
-        pos = self.pairs[i, 1]
-        neg = self.random_peptide()
-        gene = ''.join(gene)
-        pos = ''.join(pos)
-        neg = ''.join(neg)
+        gene = self.pairs.loc[i, 0]
+        pos = self.pairs.loc[i, 1]
+        neg = self.pairs.loc[i, 2]
+        gene = str(self.seqs[gene])
+        pos = str(self.seqs[pos])
+        neg = str(self.seqs[neg])
+        gene = seq2onehot(gene).long()
+        pos = seq2onehot(pos).long()
+        neg = seq2onehot(neg).long()
+
         return gene, pos, neg
 
     def __iter__(self):
@@ -109,8 +126,7 @@ class AlignmentDataset(Dataset):
 
         if worker_info is None:  # single-process data loading
             for i in range(end):
-                for _ in range(self.num_neg):
-                    yield self.__getitem__(i)
+                yield self.__getitem__(i)
         else:
             worker_id = worker_info.id
             w = float(worker_info.num_workers)
@@ -121,8 +137,7 @@ class AlignmentDataset(Dataset):
             iter_start = start + worker_id * per_worker
             iter_end = min(iter_start + per_worker, end)
             for i in range(iter_start, iter_end):
-                for _ in range(self.num_neg):
-                    yield self.__getitem__(i)
+                yield self.__getitem__(i)
 
 
 class MultinomialResample:

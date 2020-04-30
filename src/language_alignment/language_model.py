@@ -1,3 +1,4 @@
+import os
 import torch
 import warnings
 from language_alignment.protein import ProteinSequence
@@ -8,7 +9,7 @@ with warnings.catch_warnings():
     import tensorflow as tf
 
 
-class LanguageModel(object):
+class LanguageModel(torch.nn.Module):
 
     def __init__(self, path, device='cuda'):
         super(LanguageModel, self).__init__()
@@ -23,8 +24,8 @@ class Roberta(LanguageModel):
     def __init__(self, path, trainable=False, device='cuda'):
         super(Roberta, self).__init__(path, device)
         from fairseq.models.roberta import RobertaModel
-        ROOT = os.path.abspath(__file__)
-
+        ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))
         # can substitute any model for `checkpoint_xs.pt`
         self.model = RobertaModel.from_pretrained(
             path, 'checkpoint_best.pt',
@@ -33,8 +34,9 @@ class Roberta(LanguageModel):
         self.device = device
 
     def __call__(self, x):
-        toks = self.model.encode(' '.join(list(x)))
-        res = self.model.extract_features(toks)
+        """ Extracts representation from one hot encodings. """
+        #toks = self.model.encode(' '.join(list(x)))
+        res = self.model.extract_features(x)
         # cut out the ends
         res = res[:, 1:-1].to(self.device)
         return res

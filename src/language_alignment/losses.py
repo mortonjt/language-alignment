@@ -93,14 +93,19 @@ class CCAloss(object):
         return -corr
 
 
-class TripletLoss:
+class TripletLoss(nn.Module):
+    def __init__(self):
+        super(TripletLoss, self).__init__()
+        self.loss = nn.MarginRankingLoss()
+
     """ From FaceNet
     https://arxiv.org/pdf/1503.03832.pdf"""
     def __call__(self, xy, xz, alpha=0.1):
+        target = torch.Tensor([-1])
         dxy = torch.norm(xy).pow(2)
         dxz = torch.norm(xz).pow(2)
-        loss = dxy - dxz + alpha
-        return torch.max(loss, 0)
+        loss = torch.clamp(dxy - dxz + alpha, min=0)
+        return loss
 
 class RankingLoss:
     """ From Bayesian Personalized Ranking

@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from language_alignment.losses import CCAloss
 
 
-class MeanAligner(object):
+class MeanAligner(nn.Module):
     def __call__(self, z_x, z_y):
         mean_x = z_x.mean(axis=-1)
         mean_y = z_y.mean(axis=-1)

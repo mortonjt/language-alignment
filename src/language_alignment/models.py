@@ -1,21 +1,14 @@
 import torch
+from language_alignment.layers import MeanAligner, CCAaligner, SSAaligner
 
 
-class AlignmentModel(torch.nn.Module):
+class MeanAlignmentModel(torch.nn.Module):
 
-    def __init__(self, aligner_fun):
+    def __init__(self):
         """
-        Parameters
-        ----------
-        lm : LanguageModel
-           Language model class
-        aligner_fun : func
-           Alignment function
-        triplet_loss : func
-           Triplet loss function
         """
-        super(AlignmentModel, self).__init__()
-        self.aligner_fun = aligner_fun
+        super(MeanAlignmentModel, self).__init__()
+        self.aligner_fun = MeanAligner()
 
     def load_language_model(self, cls, path, device='cuda'):
         """
@@ -39,5 +32,5 @@ class AlignmentModel(torch.nn.Module):
            Embedding for sequence y
         """
         z_x = self.lm(x)
-        z_y = self.lm(x)
+        z_y = self.lm(y)
         return self.aligner_fun(z_x, z_y)

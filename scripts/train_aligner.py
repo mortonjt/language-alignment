@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import reduce
+import datetime
 import glob
 import os
 import re
@@ -15,10 +16,10 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from language_alignment import pretrained_language_models
-from language_alignment.models import AlignmentModel
+from language_alignment.models import MeanAlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
-from language_alignment.dataset import NegativeSampler, AlignmentDataset
+from language_alignment.dataset import AlignmentDataset
 from language_alignment.dataset import collate_alignment_pairs
 
 
@@ -44,23 +45,26 @@ def initialize_logging(root_dir='./', logging_path=None):
     return writer
 
 def init_model(args):
-    cls, path = pretrained_language_models['onehot']
+    cls, path = pretrained_language_models[args.arch]
     device = 'cuda' if args.gpu else 'cpu'
     if args.lm is not None:
         path = args.lm
     align_fun = aligner_type(args)
-    model = AlignmentModel(align_fun)
+    model = MeanAlignmentModel()
     model.load_language_model(cls, path, device=device)
+    if not args.finetune:
+        for param in model.lm.parameters():
+            param.require_grad = False
     return model, device
 
 def init_dataloaders(args, device):
     seqs = list((SeqIO.parse(open(args.fasta), format='fasta')))
-    sampler = NegativeSampler(seqs)
+    seqs = {x.id: x.seq for x in seqs}
     cfxn = lambda x: collate_alignment_pairs(x, device)
-    train_pairs = pd.read_table(args.train_pairs, header=None)
-    valid_pairs = pd.read_table(args.valid_pairs, header=None)
-    train_dataset = AlignmentDataset(train_pairs, sampler)
-    valid_dataset = AlignmentDataset(valid_pairs, sampler)
+    train_pairs = pd.read_table(args.train_pairs, header=None, sep='\s+')
+    valid_pairs = pd.read_table(args.valid_pairs, header=None, sep='\s+')
+    train_dataset = AlignmentDataset(train_pairs, seqs)
+    valid_dataset = AlignmentDataset(valid_pairs, seqs)
     train_dataloader = DataLoader(train_dataset, args.batch_size,
                                   shuffle=True, collate_fn=cfxn)
     valid_dataloader = DataLoader(valid_dataset, args.batch_size,
@@ -98,7 +102,6 @@ def make_valid_step(model, triplet_loss):
 def checkpoint_step(args, model, avg_valid_loss, best_valid_loss):
     torch.save(model.state_dict(), args.dir + '/model_current.pt')
     if avg_valid_loss < best_valid_loss:
-        writer.add_text("Log", "Best validation loss achieved at %d." % n)
         torch.save(model.state_dict(), args.dir + '/model_best.pt')
         best_valid_loss = avg_valid_loss
 
@@ -122,16 +125,17 @@ def main(args):
     for epoch in range(1, args.epochs + 1):
         train_loss, valid_loss, best_valid_loss = 0.0, 0.0, 0.0
         for batch_idx, batch in enumerate(train_dataloader):
+            print(batch_idx)
             loss = train_step(*batch)
             train_loss += loss
-            if batch_ix % 10 == 0:
+            if batch_idx % 10 == 0:
                 print("Batch {}/{}.  Batch loss: {}".format(
-                    i, len(train_dataloader), loss))
+                    batch_idx, len(train_dataloader), loss))
         for batch_idx, batch in enumerate(valid_dataloader):
             valid_loss += valid_step(*batch)
 
-        avg_train_loss = train_loss / len(train_dataset)
-        avg_valid_loss = valid_loss / len(valid_dataset)
+        avg_train_loss = train_loss / len(train_dataloader)
+        avg_valid_loss = valid_loss / len(valid_dataloader)
         writer.add_scalar('training_loss', avg_train_loss)
         writer.add_scalar('validation_loss', avg_valid_loss)
         best_valid_loss = checkpoint_step(args, model,
@@ -159,7 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--max-len', help='Maximum length of protein', default=1024,
                         required=False, type=str)
     parser.add_argument('--learning-rate', help='Learning rate',
-                        required=False, type=float, default=1e-3)
+                        required=False, type=float, default=5e-5)
     parser.add_argument('--batch-size', help='Training batch size',
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', help='Training batch size',
