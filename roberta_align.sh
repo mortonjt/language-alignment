@@ -14,20 +14,41 @@ module load cudnn/v7.6.2-cuda-10.1
 source ~/venvs/transformers-torch/bin/activate
 echo 'running attention'
 echo `which python`
-components=40
+components=80
 DATADIR=/mnt/ceph/users/jmorton/icml-final-submission
-pairs_dir=$DATADIR/data/alignment/domain_pairs_split
 
+## domain alignment benchmark
+# pairs_dir=$DATADIR/data/alignment/domain_pairs_split
+# epoch=uniref90
+# embeds=$DATADIR/results/embeddings/attn/epoch${epoch}/
+# for fname in $pairs_dir/*
+# do
+#      echo $fname
+#      f=`basename $fname`
+#      out=$DATADIR/results/alignments/attn_epoch${epoch}
+#      mkdir -p $out
+#      cmd="python scripts/get_alignment.py $embeds $fname $out $components"
+#      sbatch -p genx --ntasks 1 --cpus-per-task 1 --wrap "$cmd"
+#      # python get_alignment.py $embeds $fname $out $components
+# done
+
+## structure alignment
+pairs_dir=
 epoch=uniref90
-embeds=$DATADIR/results/embeddings/attn/epoch${epoch}/
+embeds=/mnt/ceph/users/jmorton/embeddings/roberta/malisam/
+fname=$DATADIR/data/alignment/malisam/analog_ids.txt
 
-for fname in $pairs_dir/*
-do
-     echo $fname
-     f=`basename $fname`
-     out=$DATADIR/results/alignments/attn_epoch${epoch}
-     mkdir -p $out
-     cmd="python scripts/get_alignment.py $embeds $fname $out $components"
-     sbatch -p ccb --ntasks 1 --cpus-per-task 1 --wrap "$cmd"
-     # python get_alignment.py $embeds $fname $out $components
-done
+echo $fname
+f=`basename $fname`
+out=$DATADIR/results/alignments/malisam/roberta_${epoch}
+mkdir -p $out
+cmd="python scripts/get_alignment.py $embeds $fname $out $components"
+sbatch -p genx --ntasks 1 --cpus-per-task 1 --wrap "$cmd"
+#python scripts/get_alignment.py $embeds $fname $out $components
+
+embeds=/mnt/ceph/users/jmorton/embeddings/roberta/malidup/
+out=$DATADIR/results/alignments/malidup/roberta_${epoch}
+mkdir -p $out
+fname=$DATADIR/data/alignment/malidup/dup_ids.txt
+cmd="python scripts/get_alignment.py $embeds $fname $out $components"
+sbatch -p genx --ntasks 1 --cpus-per-task 1 --wrap "$cmd"

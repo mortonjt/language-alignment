@@ -1,5 +1,6 @@
 import sys
 from scipy.spatial.distance import euclidean, squareform
+import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,36 +9,40 @@ import glob
 import os
 import re
 import site
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-site.addsitedir(os.path.join(base_path, 'src'))
-from score import domain_score
-from alignment import cca_solve
+#base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#site.addsitedir(os.path.join(base_path, 'src'))
+#from score import domain_score
+from language_alignment.alignment import cca_solve
+from language_alignment.score import distance
 
 
-embed_directory = sys.argv[1]
-msa_metadata = sys.argv[2]
-out_file = sys.argv[3]
-transpose = bool(sys.argv[4])
-mode = sys.argv[5]
-if mode is None:
-    mode = 'euclidean'
-if transpose is None:
-    transpose = False
 
-def distance(x, y):
-    if transpose:
-        X = x.T
-        Y = y.T
+parser = argparse.ArgumentParser(description='Description of your program')
+parser.add_argument('-i','--input-directory', help='Input directory', required=True)
+parser.add_argument('-m','--metadata', help='Triples', required=True)
+parser.add_argument('-r','--transpose', help='Transpose embeddings',
+                    required=False, default=False, type=bool)
+parser.add_argument('-d','--distance', help='Distance metric',
+                    required=False, default='cca', type=str)
+parser.add_argument('-o','--out_file', help='Output directory of edges', required=True)
+args = parser.parse_args()
 
-    if mode == 'euclidean':
-        xc = X.mean(axis=0)
-        yc = Y.mean(axis=0)
-        return euclidean(xc, yc)
 
-    elif mode == 'cca':
-        r2 = cca_solve(X, Y)[-1]
-        return 1 - r2
 
+embed_directory = args.input_directory
+msa_metadata = args.metadata
+out_file = args.out_file
+mode = args.distance
+transpose = args.transpose
+
+#TODO fix above
+
+# transpose = bool(sys.argv[4])
+# mode = sys.argv[5]
+# if mode is None:
+#     mode = 'euclidean'
+# if transpose is None:
+#     transpose = False
 
 def get_distances(path, names):
     dists = []
@@ -49,7 +54,7 @@ def get_distances(path, names):
                 nj = os.path.join(path, names[j])
                 x = np.load(ni)['embed']
                 y = np.load(nj)['embed']
-                r = (names[i], names[j], distance(x, y))
+                r = (names[i], names[j], distance(x, y, mode, transpose))
                 dists.append(r)
             except:
                 r = (names[i], names[j], 100)
@@ -66,12 +71,14 @@ def count(dm):
     dm = dm.set_index(['from', 'to'])
     idx = list(zip(within_names, outside_names))
     c = 0
+    total = 0
     for w in list(within_names.values):
         for o in list(outside_names.values):
             dw = np.unique(dm.loc[tuple(w)].distance)
             do = np.unique(dm.loc[tuple(o)].distance)
             c+= int(dw < do)
-    return c / (len(within_names) * len(outside_names))
+            total += 1
+    return c / total
 
 
 metadata = pd.read_table(msa_metadata, index_col=0, sep='\s+')
@@ -84,8 +91,9 @@ dm = {}
 # calculate distances
 for name, group in metadata.groupby('family'):
     print(name)
-    within = list(group.loc[group['within'], 'from'])
-    outside = list(group.loc[group['outside'], 'to'])
+    within = list(group.loc[group['within'], 'from'].unique())
+    outside = list(group.loc[group['outside'], 'to'].unique())
+    if len(within) <= 2: continue
     kf = get_distances(embed_directory, names=within + outside)
     kf['within'] = kf.apply(lambda x: x['from'] in within and x['to'] in within, axis=1)
     kf['outside'] = kf.apply(lambda x: x['from'] in within and x['to'] in outside, axis=1)

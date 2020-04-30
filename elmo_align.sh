@@ -13,7 +13,7 @@ module load cudnn/v7.6.2-cuda-10.1
 source ~/venvs/transformers-torch/bin/activate
 echo 'running attention'
 echo `which python`
-components=40
+components=90
 DATADIR=/mnt/ceph/users/jmorton/icml-final-submission
 pairs_dir=$DATADIR/data/alignment/domain_pairs_split
 
@@ -26,7 +26,7 @@ do
      out=$DATADIR/results/alignments/attn_epoch${epoch}
 
      cmd="python scripts/get_alignment.py $embeds $fname $out $components"
-     sbatch -p ccb --ntasks 1 --cpus-per-task 1 --wrap "$cmd"
+     sbatch -p genx --ntasks 1 --cpus-per-task 1 --wrap "$cmd"
      # python get_alignment.py $embeds $fname $out $components
 done
 

@@ -51,6 +51,7 @@ df.columns = ['protein', 'domain', 'source',
 df['length'] = df.apply(lambda x: x['end'] - x['start'], axis=1)
 domdict = dict(list(df.groupby('protein')))
 
+
 # load fasta seqs
 #seqdict = {x.id : str(x.seq) for x in SeqIO.parse(fasta_file, "fasta")}
 print(len(fnames), len(seqdict), len(domdict))

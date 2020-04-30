@@ -15,10 +15,10 @@ import networkx as nx
 import site
 from functools import reduce
 
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-site.addsitedir(os.path.join(base_path, 'src'))
+#base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#site.addsitedir(os.path.join(base_path, 'src'))
 
-from alignment import cca_solve, cca_align, filter_by_locality
+from language_alignment.alignment import cca_solve, cca_align, filter_by_locality
 
 
 #fasta_file = '../data/combined.fasta'
@@ -43,7 +43,7 @@ results = []
 #fnames = glob.glob('../../results/swissprot-attn/*.npz')
 fnames = glob.glob(f'{in_directory}/*.npz')
 fnames2 = list(map(os.path.basename, fnames))
-qs = list(map(lambda x: x.split('.')[0], fnames2))
+qs = list(map(lambda x: x.split('.npz')[0], fnames2))
 qsd = dict(zip(qs, fnames))
 
 # watch out for this
@@ -51,9 +51,11 @@ pairs = pd.read_csv(pair_file, sep='\s+', header=None)
 print(pairs.shape, len(qsd))
 # with open(out_file, 'w') as out_handle:
 for i in range(len(pairs)):
+
     t = pairs.iloc[i].values.ravel()
     prot_x, prot_y = t[0], t[1]
     outname = f'{results_dir}/attn_edges_{prot_x}{prot_y}.csv'
+
     # don't reprocess edges if it exists
     if os.path.exists(outname): continue
 
