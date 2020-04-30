@@ -29,15 +29,17 @@ def seq2onehot(seq):
     # seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
     return torch.Tensor(np.array(seqs_x)).long()
 
-def collate_alignment_pairs(batch, device, max_len=1024):
+def collate_alignment_pairs(batch, max_len=1024):
     """
     Padds matrices of variable length
+
+    Previously, device was a parameter
     """
     # get sequence lengths
     lengths = torch.tensor(
         [(t[0].shape[0], t[1].shape[0], t[2].shape[0])
              for t in batch])
-    lengths = lengths.to(device)
+    #lengths = lengths.to(device)
     ml = lengths.max()
     S1_padded = torch.zeros((len(batch), ml))
     S2_padded = torch.zeros((len(batch), ml))
