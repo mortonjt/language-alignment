@@ -2,13 +2,13 @@ import torch
 from language_alignment.layers import MeanAligner, CCAaligner, SSAaligner
 
 
-class MeanAlignmentModel(torch.nn.Module):
+class AlignmentModel(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, aligner):
         """
         """
-        super(MeanAlignmentModel, self).__init__()
-        self.aligner_fun = MeanAligner()
+        super(AlignmentModel, self).__init__()
+        self.aligner_fun = aligner
 
     def load_language_model(self, cls, path, device='cuda'):
         """

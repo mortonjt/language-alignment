@@ -85,7 +85,8 @@ class CCAloss(object):
         else:
             # just the top self.outdim_size singular values are used
             trace_TT = torch.matmul(Tval.t(), Tval)
-            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0])*r1).to(self.device)) # regularization for more stability
+            # regularization for more stability
+            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0])*r1).to(self.device))
             U, V = torch.symeig(trace_TT, eigenvectors=True)
             U = torch.where(U>eps, U, (torch.ones(U.shape).double()*eps).to(self.device))
             U = U.topk(self.outdim_size)[0]
@@ -101,10 +102,7 @@ class TripletLoss(nn.Module):
     """ From FaceNet
     https://arxiv.org/pdf/1503.03832.pdf"""
     def __call__(self, xy, xz, alpha=0.1):
-        target = torch.Tensor([-1])
-        dxy = torch.norm(xy).pow(2)
-        dxz = torch.norm(xz).pow(2)
-        loss = torch.clamp(dxy - dxz + alpha, min=0)
+        loss = torch.clamp(xy - xz + alpha, min=0)
         return loss
 
 class RankingLoss:

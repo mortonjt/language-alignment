@@ -42,9 +42,9 @@ def collate_alignment_pairs(batch, device, max_len=1024):
     S1_padded = torch.zeros((len(batch), ml))
     S2_padded = torch.zeros((len(batch), ml))
     S3_padded = torch.zeros((len(batch), ml))
-    S1_padded[:, :] = 1
-    S2_padded[:, :] = 1
-    S3_padded[:, :] = 1
+    S1_padded[:, :] = 2
+    S2_padded[:, :] = 2
+    S3_padded[:, :] = 2
 
     # padd (double check for dim issues)
     for i in range(len(batch)):

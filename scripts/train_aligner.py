@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from language_alignment import pretrained_language_models
-from language_alignment.models import MeanAlignmentModel
+from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
 from language_alignment.dataset import AlignmentDataset
@@ -50,11 +50,8 @@ def init_model(args):
     if args.lm is not None:
         path = args.lm
     align_fun = aligner_type(args)
-    model = MeanAlignmentModel()
+    model = AlignmentModel(aligner=align_fun)
     model.load_language_model(cls, path, device=device)
-    if not args.finetune:
-        for param in model.lm.parameters():
-            param.require_grad = False
     return model, device
 
 def init_dataloaders(args, device):
@@ -82,6 +79,10 @@ def make_train_step(model, triplet_loss, optimizer):
         loss.backward()
         # torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
+        # from torchviz import make_dot, make_dot_from_trace
+        # dot = make_dot(loss, params=dict(model.named_parameters()))
+        # dot.render('loss.png')
+
         return loss.item()
 
     # Returns the function that will be called inside the train loop
@@ -100,9 +101,9 @@ def make_valid_step(model, triplet_loss):
     return valid_step
 
 def checkpoint_step(args, model, avg_valid_loss, best_valid_loss):
-    torch.save(model.state_dict(), args.dir + '/model_current.pt')
+    torch.save(model.state_dict(), args.output_directory + '/model_current.pt')
     if avg_valid_loss < best_valid_loss:
-        torch.save(model.state_dict(), args.dir + '/model_best.pt')
+        torch.save(model.state_dict(), args.output_directory + '/model_best.pt')
         best_valid_loss = avg_valid_loss
 
 def main(args):
@@ -125,10 +126,9 @@ def main(args):
     for epoch in range(1, args.epochs + 1):
         train_loss, valid_loss, best_valid_loss = 0.0, 0.0, 0.0
         for batch_idx, batch in enumerate(train_dataloader):
-            print(batch_idx)
             loss = train_step(*batch)
             train_loss += loss
-            if batch_idx % 10 == 0:
+            if batch_idx % 100 == 0:
                 print("Batch {}/{}.  Batch loss: {}".format(
                     batch_idx, len(train_dataloader), loss))
         for batch_idx, batch in enumerate(valid_dataloader):
@@ -152,9 +152,8 @@ if __name__ == '__main__':
     parser.add_argument('-c','--arch',
                         help='Pretrained model type (choices include onehot, elmo and roberta',
                         required=False, default='elmo')
-    parser.add_argument('-t','--finetune', help='Enable fine-tuning',
-                        required=False, default=False)
-    parser.add_argument('-a','--aligner', help='Aligner type. Choices include (mean, cca, ssa).',
+    parser.add_argument('-a','--aligner',
+                        help='Aligner type. Choices include (mean, cca, ssa).',
                         required=False, type=str, default='mean')
     parser.add_argument('--lm-embed-dim', help='Language model embedding dimension.',
                         required=False, type=str)
