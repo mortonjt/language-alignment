@@ -30,7 +30,7 @@ def aligner_type(args):
     if args.aligner == 'cca':
         align_fun = CCAaligner(input_dim, embed_dim, max_len)
     elif args.aligner == 'ssa':
-        align_fun = SSAaligner(input_dim, embed_dim, max_len)
+        align_fun = SSAaligner()
     else:
         align_fun = MeanAligner()
     return align_fun
