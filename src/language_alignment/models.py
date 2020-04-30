@@ -1,5 +1,4 @@
 import torch
-from losses import RankingLoss
 
 
 class AlignmentModel(torch.nn.Module):
@@ -42,5 +41,3 @@ class AlignmentModel(torch.nn.Module):
         z_x = self.lm(x)
         z_y = self.lm(x)
         return self.aligner_fun(z_x, z_y)
-
-    def loss(self, x, y, z):

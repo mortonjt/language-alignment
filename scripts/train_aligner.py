@@ -18,7 +18,7 @@ from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
-from language_alignment.dataset import NegativeSampler, AlignmentDataset,
+from language_alignment.dataset import NegativeSampler, AlignmentDataset
 from language_alignment.dataset import collate_alignment_pairs
 
 
@@ -54,17 +54,18 @@ def init_model(args):
     return model, device
 
 def init_dataloaders(args, device):
-    seqs = list((SeqIO.parse(open(arg.fasta))))
+    seqs = list((SeqIO.parse(open(args.fasta), format='fasta')))
     sampler = NegativeSampler(seqs)
     cfxn = lambda x: collate_alignment_pairs(x, device)
-    train_dataset = AlignmentDataset(args.train_pairs, sampler)
-    valid_dataset = AlignmentDataset(args.valid_pairs, sampler)
+    train_pairs = pd.read_table(args.train_pairs, header=None)
+    valid_pairs = pd.read_table(args.valid_pairs, header=None)
+    train_dataset = AlignmentDataset(train_pairs, sampler)
+    valid_dataset = AlignmentDataset(valid_pairs, sampler)
     train_dataloader = DataLoader(train_dataset, args.batch_size,
                                   shuffle=True, collate_fn=cfxn)
     valid_dataloader = DataLoader(valid_dataset, args.batch_size,
                                   shuffle=True, collate_fn=cfxn)
     return train_dataloader, valid_dataloader
-
 
 def make_train_step(model, triplet_loss, optimizer):
     # Builds function that performs a step in the train loop
@@ -106,7 +107,7 @@ def main(args):
     model, device = init_model(args)
     # Initialize tensorboard
     writer = initialize_logging(root_dir=args.output_directory,
-                                logging_path='/logs/'):
+                                logging_path='/logs/')
     # Setup Dataloader
     train_dataloader, valid_dataloader = init_dataloaders(args, device)
     # optimizer
@@ -127,17 +128,17 @@ def main(args):
                 print("Batch {}/{}.  Batch loss: {}".format(
                     i, len(train_dataloader), loss))
         for batch_idx, batch in enumerate(valid_dataloader):
-            valid_loss += train_step(*batch)
+            valid_loss += valid_step(*batch)
 
         avg_train_loss = train_loss / len(train_dataset)
         avg_valid_loss = valid_loss / len(valid_dataset)
         writer.add_scalar('training_loss', avg_train_loss)
         writer.add_scalar('validation_loss', avg_valid_loss)
         best_valid_loss = checkpoint_step(args, model,
-                                          avg_valid_loss, best_valid_loss):
+                                          avg_valid_loss, best_valid_loss)
 
 
-def __name__ == '__main__':
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('--train-pairs', help='Training pairs file', required=True)
     parser.add_argument('--valid-pairs', help='Validation pairs file', required=True)
@@ -150,21 +151,21 @@ def __name__ == '__main__':
     parser.add_argument('-t','--finetune', help='Enable fine-tuning',
                         required=False, default=False)
     parser.add_argument('-a','--aligner', help='Aligner type. Choices include (mean, cca, ssa).',
-                        required=False, type='str', default='mean')
+                        required=False, type=str, default='mean')
     parser.add_argument('--lm-embed-dim', help='Language model embedding dimension.',
-                        required=False, type='str')
+                        required=False, type=str)
     parser.add_argument('--aligner-embed-dim', help='Aligner embedding dimension.',
-                        required=False, type='str')
+                        required=False, type=str)
     parser.add_argument('--max-len', help='Maximum length of protein', default=1024,
-                        required=False, type='str')
+                        required=False, type=str)
     parser.add_argument('--learning-rate', help='Learning rate',
                         required=False, type=float, default=1e-3)
     parser.add_argument('--batch-size', help='Training batch size',
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', help='Training batch size',
-                        required=False, type=int, 10)
+                        required=False, type=int, default=10)
     parser.add_argument('-g','--gpu', help='Use GPU or not', default=False,
-                        required=False, type='bool')
+                        required=False, type=bool)
     parser.add_argument('-o','--output-directory', help='Output directory of model results',
                         required=True)
     args = parser.parse_args()

@@ -1,6 +1,7 @@
 import inspect
 import numpy as np
 import os
+import numbers
 
 
 def get_data_path(fn, subfolder='data'):
