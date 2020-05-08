@@ -26,7 +26,7 @@ class CCAloss(object):
         r2 = 1e-3
         eps = 1e-9
 
-        H1, H2 = H1.t(), H2.t()
+        H1, H2 = torch.squeeze(H1).t(), torch.squeeze(H2).t()
         # assert torch.isnan(H1).sum().item() == 0
         # assert torch.isnan(H2).sum().item() == 0
 

@@ -10,7 +10,6 @@ with warnings.catch_warnings():
 
 
 class LanguageModel(torch.nn.Module):
-
     def __init__(self, path, device='cuda'):
         super(LanguageModel, self).__init__()
         self.path = path
@@ -39,7 +38,7 @@ class Roberta(LanguageModel):
         res = self.model.extract_features(x)
         # cut out the ends
         res = res[:, 1:-1].to(self.device)
-        return res
+        return res.t()
 
 
 class Elmo(LanguageModel):
@@ -73,4 +72,9 @@ class OneHot(LanguageModel):
 
     def __call__(self, x):
         emb_i = [onehot(self.tla_codes.index(w_i), self.num_words) for w_i in x]
-        return torch.Tensor(emb_i).to(self.device)
+
+        emb = torch.Tensor(emb_i).t()
+        x, y = emb.shape
+        emb = emb.view(1, x, y)
+        # make the embedding dimension the last dimension
+        return emb.to(self.device)

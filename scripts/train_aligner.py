@@ -14,6 +14,8 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torch.optim.lr_scheduler import CyclicLR
+from torch.nn.utils import clip_grad_norm_
 
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
@@ -27,8 +29,9 @@ def aligner_type(args):
     input_dim = args.lm_embed_dim
     embed_dim = args.aligner_embed_dim
     max_len = args.max_len
+    device = 'cuda' if args.gpu else 'cpu'
     if args.aligner == 'cca':
-        align_fun = CCAaligner(input_dim, embed_dim, max_len)
+        align_fun = CCAaligner(input_dim, embed_dim, max_len, device=device)
     elif args.aligner == 'ssa':
         align_fun = SSAaligner()
     else:
@@ -52,6 +55,7 @@ def init_model(args):
     align_fun = aligner_type(args)
     model = AlignmentModel(aligner=align_fun)
     model.load_language_model(cls, path, device=device)
+    model.to(device)
     return model, device
 
 def init_dataloaders(args, device):
@@ -76,8 +80,9 @@ def make_train_step(model, triplet_loss, optimizer):
         xy = model(x, y)
         xz = model(x, z)
         loss = triplet_loss(xy, xz)
+        clip_grad_norm_(model.parameters(), 1.0)
         loss.backward()
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        #
         optimizer.step()
         # from torchviz import make_dot, make_dot_from_trace
         # dot = make_dot(loss, params=dict(model.named_parameters()))
@@ -88,15 +93,16 @@ def make_train_step(model, triplet_loss, optimizer):
     # Returns the function that will be called inside the train loop
     return train_step
 
-def make_valid_step(model, triplet_loss):
+def make_valid_step(model, triplet_loss, scheduler):
     # Builds function that performs a step in the valid loop
     def valid_step(x, y, z):
         model.eval()
+
         xy = model(x, y)
         xz = model(x, z)
         loss = triplet_loss(xy, xz)
         return loss.item()
-
+        scheduler.step()
     # Returns the function that will be called inside the valid loop
     return valid_step
 
@@ -115,13 +121,26 @@ def main(args):
     # Setup Dataloader
     train_dataloader, valid_dataloader = init_dataloaders(args, device)
     # optimizer
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    if not args.finetune:
+        for p in model.lm.parameters():
+            p.requires_grad = False
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
+                              lr=args.learning_rate)
+        scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
+    else:
+        optimizer = optim.SGD(
+            [
+                {'params': model.lm.parameters(), 'lr': 1e-6},
+                {'params': model.aligner_fun.parameters(), 'lr': args.learning_rate}
+            ]
+        )
+        scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
     # Define loss function
     triplet_loss = TripletLoss()
     # Creates the train_step function
     train_step = make_train_step(model, triplet_loss, optimizer)
     # Creates the valid_step function
-    valid_step = make_valid_step(model, triplet_loss)
+    valid_step = make_valid_step(model, triplet_loss, scheduler)
     # Training loop
     for epoch in range(1, args.epochs + 1):
         train_loss, valid_loss, best_valid_loss = 0.0, 0.0, 0.0
@@ -129,8 +148,10 @@ def main(args):
             loss = train_step(*batch)
             train_loss += loss
             if batch_idx % 100 == 0:
-                print("Batch {}/{}.  Batch loss: {}".format(
+                print("Batch {}/{}.  Batch loss: {}.".format(
                     batch_idx, len(train_dataloader), loss))
+            if batch_idx > 1 : return # to debug
+
         for batch_idx, batch in enumerate(valid_dataloader):
             valid_loss += valid_step(*batch)
 
@@ -156,17 +177,19 @@ if __name__ == '__main__':
                         help='Aligner type. Choices include (mean, cca, ssa).',
                         required=False, type=str, default='mean')
     parser.add_argument('--lm-embed-dim', help='Language model embedding dimension.',
-                        required=False, type=str)
+                        required=False, type=int, default=1024)
     parser.add_argument('--aligner-embed-dim', help='Aligner embedding dimension.',
-                        required=False, type=str)
+                        required=False, type=int, default=128)
     parser.add_argument('--max-len', help='Maximum length of protein', default=1024,
                         required=False, type=str)
     parser.add_argument('--learning-rate', help='Learning rate',
-                        required=False, type=float, default=5e-5)
-    parser.add_argument('--batch-size', help='Training batch size',
+                        required=False, type=float, default=1e-3)
+    parser.add_argument('--batch-size', help='Training batch size (needs to be 1 for cca)',
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', help='Training batch size',
                         required=False, type=int, default=10)
+    parser.add_argument('--finetune', help='Perform finetuning (does not work with mean)',
+                        default=False, required=False, type=bool)
     parser.add_argument('-g','--gpu', help='Use GPU or not', default=False,
                         required=False, type=bool)
     parser.add_argument('-o','--output-directory', help='Output directory of model results',

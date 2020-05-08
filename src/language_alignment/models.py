@@ -33,4 +33,5 @@ class AlignmentModel(torch.nn.Module):
         """
         z_x = self.lm(x)
         z_y = self.lm(y)
+        print(z_x.shape, z_y.shape)
         return self.aligner_fun(z_x, z_y)

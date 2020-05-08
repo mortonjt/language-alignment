@@ -1,4 +1,4 @@
-""" This implements the datsets from Bepler et al 2019."""
+r""" This implements the datsets from Bepler et al 2019."""
 import numpy as np
 
 import torch
@@ -116,7 +116,6 @@ class AlignmentDataset(Dataset):
         gene = seq2onehot(gene).long()
         pos = seq2onehot(pos).long()
         neg = seq2onehot(neg).long()
-
         return gene, pos, neg
 
     def __iter__(self):

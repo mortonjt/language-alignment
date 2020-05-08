@@ -35,7 +35,9 @@ class SSAaligner(nn.Module):
         self.compare = compare
 
     def __call__(self, z_x, z_y):
-        s = self.compare(z_x, z_y)
+        x = torch.squeeze(z_x).t()
+        y = torch.squeeze(z_y).t()
+        s = self.compare(x, y)
 
         a = F.softmax(s, 1)
         b = F.softmax(s, 0)
@@ -46,11 +48,11 @@ class SSAaligner(nn.Module):
 
 
 class CCAaligner(nn.Module):
-    def __init__(self, input_dim=512, embed_dim=64, max_len=1024):
+    def __init__(self, input_dim=512, embed_dim=64, max_len=1024, device='cpu'):
         super(CCAaligner, self).__init__()
         self.model_x = nn.Linear(input_dim, embed_dim)
         self.model_y = nn.Linear(input_dim, embed_dim)
-        self.loss = CCAloss(embed_dim)
+        self.loss = CCAloss(embed_dim, device=device)
         self.input_dim = input_dim
         self.embed_dim = embed_dim
         self.max_len = max_len
@@ -63,8 +65,10 @@ class CCAaligner(nn.Module):
         corresponds to the sequence length and the
         second dimensions corresponds to the embedding dimension.
 
-        The input *must* be padded.
+        The input *must* be padded. Only accepts 1 pair at a time.
         """
-        x = self.model_x(z_x)
-        y = self.model_y(z_y)
+        x = torch.squeeze(z_x).t()
+        y = torch.squeeze(z_y).t()
+        x = self.model_x(x)
+        y = self.model_y(y)
         return self.loss(x, y)
