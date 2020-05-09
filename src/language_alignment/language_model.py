@@ -36,11 +36,6 @@ class Roberta(LanguageModel):
         """ Extracts representation from one hot encodings. """
         #toks = self.model.encode(' '.join(list(x)))
         res = self.model.extract_features(x)
-        if torch.isnan(res).sum().item() > 0:
-
-            print(x)
-            print(res)
-
         # cut out the ends
         res = res[:, 1:-1].to(self.device)
         return res.permute(0, 2, 1)

@@ -13,7 +13,6 @@ def seq2onehot(seq):
     #          'C', 'N', 'L', 'F', 'D', 'M', 'P', 'H', 'E', '-']
     # vocab_size = len(chars)
     # vocab_embed = dict(zip(chars, range(vocab_size)))
-    print(seq)
     vocab_embed = {
         '<start>': 0, 'A': 5, 'B': 25, 'C': 22, 'D': 13,
         'E': 9, 'F': 18, 'G': 7, 'H': 20, 'I': 12, 'J': 3,
@@ -26,7 +25,7 @@ def seq2onehot(seq):
     seqs_x = [vocab_embed[v] for v in seq]
     #seqs_x = [vocab_one_hot[j, :] for j in embed_x]
     # ignore the ends for now
-    # seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
+    #seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
     return torch.Tensor(np.array(seqs_x)).long()
 
 def collate_alignment_pairs(batch, device, max_len=1024):

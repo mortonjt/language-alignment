@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.functional as F
 
 
 class CCAloss(object):
@@ -22,21 +23,22 @@ class CCAloss(object):
         There can be other formulations.
         """
 
-        r1 = 1e-3
-        r2 = 1e-3
+        r1 = 1e-4
+        r2 = 1e-4
         eps = 1e-9
 
+        assert torch.isnan(H1).sum().item() == 0
+        assert torch.isnan(H2).sum().item() == 0
+
         H1, H2 = torch.squeeze(H1).t(), torch.squeeze(H2).t()
-        # assert torch.isnan(H1).sum().item() == 0
-        # assert torch.isnan(H2).sum().item() == 0
 
         o1 = o2 = H1.size(0)
 
         m = H1.size(1)
         #         print(H1.size())
 
-        assert torch.isnan(H1).sum().item() == 0
-        assert torch.isnan(H2).sum().item() == 0
+        #assert torch.isnan(H1).sum().item() == 0
+        #assert torch.isnan(H2).sum().item() == 0
 
         H1bar = H1 - H1.mean(dim=1).unsqueeze(dim=1)
         H2bar = H2 - H2.mean(dim=1).unsqueeze(dim=1)
@@ -77,7 +79,7 @@ class CCAloss(object):
 
         Tval = torch.matmul(torch.matmul(SigmaHat11RootInv,
                                          SigmaHat12), SigmaHat22RootInv)
-#         print(Tval.size())
+        #         print(Tval.size())
 
         if self.use_all_singular_values:
             # all singular values are used to calculate the correlation
@@ -89,9 +91,9 @@ class CCAloss(object):
             # just the top self.outdim_size singular values are used
             trace_TT = torch.matmul(Tval.t(), Tval)
             # regularization for more stability
-            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0])*r1).to(self.device))
+            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0]) * r1).to(self.device))
             U, V = torch.symeig(trace_TT, eigenvectors=True)
-            U = torch.where(U>eps, U, (torch.ones(U.shape).double()*eps).to(self.device))
+            U = torch.where(U > eps, U, (torch.ones(U.shape).float() * eps).to(self.device))
             U = U.topk(self.outdim_size)[0]
             corr = torch.sum(torch.sqrt(U))
         return -corr
@@ -100,7 +102,7 @@ class CCAloss(object):
 class TripletLoss(nn.Module):
     def __init__(self):
         super(TripletLoss, self).__init__()
-        self.loss = nn.MarginRankingLoss()
+        #self.loss = nn.MarginRankingLoss()
 
     """ From FaceNet
     https://arxiv.org/pdf/1503.03832.pdf"""
@@ -108,13 +110,13 @@ class TripletLoss(nn.Module):
         loss = torch.clamp(xy - xz + alpha, min=0)
         return loss
 
-class RankingLoss:
+class RankingLoss(nn.Module):
     """ From Bayesian Personalized Ranking
     https://arxiv.org/pdf/1205.2618.pdf
     """
     def __call__(self, xy, xz):
         diff = xy - xz
-        #score = F.logsigmoid(diff)
+        score = F.logsigmoid(diff)
         #losses = sum(score)
-        losses = sum(torch.norm(diff))
+        #losses = diff ** 2
         return -1 * losses

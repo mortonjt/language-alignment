@@ -1,8 +1,10 @@
 import torch
 import unittest
+from language_alignment.dataset.dataset import seq2onehot
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import CCAaligner
+import numpy.testing as npt
 
 
 class TestRobertaExtractFeatures(unittest.TestCase):
@@ -39,18 +41,26 @@ class TestRobertaExtractFeatures(unittest.TestCase):
              'LNKVIVPELNYSDIILDADHVNKIEIIPAKTIEDVLRVALVNSPEKEKLFDRISNLINAAKIIK'
              'PQRPATPATTRAGNNAA')
 
-        x = self.model.lm.model.encode(' '.join(list(x)))
-        y = self.model.lm.model.encode(' '.join(list(y)))
-        z = self.model.lm.model.encode(' '.join(list(z)))
+        exp_x = self.model.lm.model.encode(' '.join(list(x)))
+        exp_y = self.model.lm.model.encode(' '.join(list(y)))
+        exp_z = self.model.lm.model.encode(' '.join(list(z)))
 
-        res = self.model.lm.model.extract_features(x)
-        assert torch.isnan(res).sum().item() > 0
+        # Assert that onehot encodings are equal
+        res_x = seq2onehot(x)
+        npt.assert_allclose(res_x.numpy(), exp_x.numpy())
+        res_y = seq2onehot(y)
+        npt.assert_allclose(res_y.numpy(), exp_y.numpy())
+        res_z = seq2onehot(z)
+        npt.assert_allclose(res_z.numpy(), exp_z.numpy())
 
-        res = self.model.lm.model.extract_features(y)
-        assert torch.isnan(res).sum().item() > 0
+        # Assert that extract features are not nan
+        res = self.model.lm.model.extract_features(res_x)
+        self.assertEqual(torch.isnan(res).sum().item(), 0)
+        res = self.model.lm.model.extract_features(res_y)
+        self.assertEqual(torch.isnan(res).sum().item(), 0)
+        res = self.model.lm.model.extract_features(res_z)
+        self.assertEqual(torch.isnan(res).sum().item(), 0)
 
-        res = self.model.lm.model.extract_features(z)
-        assert torch.isnan(res).sum().item() > 0
 
 
 if __name__ == '__main__':

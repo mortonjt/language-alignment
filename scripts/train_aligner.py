@@ -14,13 +14,13 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import CyclicLR
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.nn.utils import clip_grad_norm_
 
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
-from language_alignment.losses import TripletLoss
+from language_alignment.losses import RankingLoss
 from language_alignment.dataset import AlignmentDataset
 from language_alignment.dataset import collate_alignment_pairs
 
@@ -125,19 +125,19 @@ def main(args):
     if not args.finetune:
         for p in model.lm.parameters():
             p.requires_grad = False
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
-                              lr=args.learning_rate)
-        scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
-    else:
-        optimizer = optim.SGD(
-            [
-                {'params': model.lm.parameters(), 'lr': 1e-6},
-                {'params': model.aligner_fun.parameters(), 'lr': args.learning_rate}
-            ]
-        )
-        scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                               lr=args.learning_rate, weight_decay=1)
+        scheduler = ExponentialLR(optimizer, gamma=0.9)
+    # else:
+    #     optimizer = optim.SGD(
+    #         [
+    #             {'params': model.lm.parameters(), 'lr': 1e-6},
+    #             {'params': model.aligner_fun.parameters(), 'lr': args.learning_rate}
+    #         ]
+    #     )
+    #     scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
     # Define loss function
-    triplet_loss = TripletLoss()
+    triplet_loss = RankingLoss()
     # Creates the train_step function
     train_step = make_train_step(model, triplet_loss, optimizer)
     # Creates the valid_step function
@@ -146,15 +146,14 @@ def main(args):
     for epoch in range(1, args.epochs + 1):
         train_loss, valid_loss, best_valid_loss = 0.0, 0.0, 0.0
         for batch_idx, batch in enumerate(train_dataloader):
-            print(batch[0])
             loss = train_step(*batch)
             if loss != loss:
-                print(batch[0].shape, batch[1].shape, batch[2].shape)
                 raise ValueError("Loss is nan")
             train_loss += loss
             #if batch_idx % 100 == 0:
-            print("Batch {}/{}.  Batch loss: {}.".format(
-                batch_idx, len(train_dataloader), train_loss / (batch_idx+1)))
+            print(loss)
+            #print("Batch {}/{}.  Batch loss: {}.".format(
+            #    batch_idx, len(train_dataloader), train_loss / (batch_idx+1)))
 
 
         for batch_idx, batch in enumerate(valid_dataloader):

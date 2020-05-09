@@ -9,6 +9,7 @@ This file contains 3 different alignment layers
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils.clip_grad import clip_grad_norm_
 from language_alignment.losses import CCAloss
 
 
@@ -50,12 +51,13 @@ class SSAaligner(nn.Module):
 class CCAaligner(nn.Module):
     def __init__(self, input_dim=512, embed_dim=64, max_len=1024, device='cpu'):
         super(CCAaligner, self).__init__()
-        self.model_x = nn.Linear(input_dim, embed_dim)
-        self.model_y = nn.Linear(input_dim, embed_dim)
+        self.projection = nn.Linear(input_dim, embed_dim)
+        self.batch_norm = nn.BatchNorm1d(embed_dim, embed_dim)
         self.loss = CCAloss(embed_dim, device=device)
         self.input_dim = input_dim
         self.embed_dim = embed_dim
         self.max_len = max_len
+        torch.nn.init.xavier_uniform(self.projection.weight)
 
     def __call__(self, z_x, z_y):
         """
@@ -67,8 +69,19 @@ class CCAaligner(nn.Module):
 
         The input *must* be padded. Only accepts 1 pair at a time.
         """
-        x = torch.squeeze(z_x).t()
-        y = torch.squeeze(z_y).t()
-        x = self.model_x(x)
-        y = self.model_y(y)
+        z_x, z_y = torch.squeeze(z_x).t(), torch.squeeze(z_y).t()
+        x = self.projection(z_x).t()
+        y = self.projection(z_y).t()
+        # print('weight')
+        # print(self.projection.weight)
+        # print('gradient')
+        # print(self.projection.weight.grad)
+
+        # x = F.gelu(x)
+        # y = F.gelu(y)
+
+        # clip_grad_norm_(self.projection.weight, 3)
+        # clip_grad_norm_(self.projection.bias, 3)
+        #x = self.batch_norm(x).t()
+        #y = self.batch_norm(y).t()
         return self.loss(x, y)
