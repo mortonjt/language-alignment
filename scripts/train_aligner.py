@@ -77,10 +77,11 @@ def make_train_step(model, triplet_loss, optimizer):
     def train_step(x, y, z):
         model.train()
         optimizer.zero_grad()
+        if torch.isnan(x).sum().item() > 0:
+            print(x)
         xy = model(x, y)
         xz = model(x, z)
         loss = triplet_loss(xy, xz)
-        clip_grad_norm_(model.parameters(), 1.0)
         loss.backward()
         #
         optimizer.step()
@@ -145,12 +146,16 @@ def main(args):
     for epoch in range(1, args.epochs + 1):
         train_loss, valid_loss, best_valid_loss = 0.0, 0.0, 0.0
         for batch_idx, batch in enumerate(train_dataloader):
+            print(batch[0])
             loss = train_step(*batch)
+            if loss != loss:
+                print(batch[0].shape, batch[1].shape, batch[2].shape)
+                raise ValueError("Loss is nan")
             train_loss += loss
-            if batch_idx % 100 == 0:
-                print("Batch {}/{}.  Batch loss: {}.".format(
-                    batch_idx, len(train_dataloader), loss))
-            if batch_idx > 1 : return # to debug
+            #if batch_idx % 100 == 0:
+            print("Batch {}/{}.  Batch loss: {}.".format(
+                batch_idx, len(train_dataloader), train_loss / (batch_idx+1)))
+
 
         for batch_idx, batch in enumerate(valid_dataloader):
             valid_loss += valid_step(*batch)

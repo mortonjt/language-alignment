@@ -32,6 +32,10 @@ class AlignmentModel(torch.nn.Module):
            Embedding for sequence y
         """
         z_x = self.lm(x)
+        if torch.isnan(z_x).sum().item() > 0:
+            print(x)
+            print(z_x)
+
         z_y = self.lm(y)
-        print(z_x.shape, z_y.shape)
+
         return self.aligner_fun(z_x, z_y)

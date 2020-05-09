@@ -13,7 +13,7 @@ def seq2onehot(seq):
     #          'C', 'N', 'L', 'F', 'D', 'M', 'P', 'H', 'E', '-']
     # vocab_size = len(chars)
     # vocab_embed = dict(zip(chars, range(vocab_size)))
-
+    print(seq)
     vocab_embed = {
         '<start>': 0, 'A': 5, 'B': 25, 'C': 22, 'D': 13,
         'E': 9, 'F': 18, 'G': 7, 'H': 20, 'I': 12, 'J': 3,
