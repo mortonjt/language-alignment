@@ -20,7 +20,7 @@ from torch.nn.utils import clip_grad_norm_
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
-from language_alignment.losses import RankingLoss
+from language_alignment.losses import TripletLoss
 from language_alignment.dataset import AlignmentDataset
 from language_alignment.dataset import collate_alignment_pairs
 
@@ -77,13 +77,13 @@ def make_train_step(model, triplet_loss, optimizer):
     def train_step(x, y, z):
         model.train()
         optimizer.zero_grad()
-        if torch.isnan(x).sum().item() > 0:
-            print(x)
         xy = model(x, y)
+
         xz = model(x, z)
         loss = triplet_loss(xy, xz)
         loss.backward()
-        #
+        grad_params = list(filter(lambda p: p.requires_grad, model.parameters()))
+
         optimizer.step()
         # from torchviz import make_dot, make_dot_from_trace
         # dot = make_dot(loss, params=dict(model.named_parameters()))
@@ -98,7 +98,6 @@ def make_valid_step(model, triplet_loss, scheduler):
     # Builds function that performs a step in the valid loop
     def valid_step(x, y, z):
         model.eval()
-
         xy = model(x, y)
         xz = model(x, z)
         loss = triplet_loss(xy, xz)
@@ -114,6 +113,8 @@ def checkpoint_step(args, model, avg_valid_loss, best_valid_loss):
         best_valid_loss = avg_valid_loss
 
 def main(args):
+    # set seed for debugging
+    # torch.manual_seed(0)
     # Initialize model
     model, device = init_model(args)
     # Initialize tensorboard
@@ -125,8 +126,9 @@ def main(args):
     if not args.finetune:
         for p in model.lm.parameters():
             p.requires_grad = False
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                               lr=args.learning_rate, weight_decay=1)
+        grad_params = list(filter(lambda p: p.requires_grad, model.parameters()))
+        optimizer = torch.optim.RMSprop(
+            grad_params, lr=args.learning_rate, weight_decay=args.reg_par)
         scheduler = ExponentialLR(optimizer, gamma=0.9)
     # else:
     #     optimizer = optim.SGD(
@@ -137,7 +139,7 @@ def main(args):
     #     )
     #     scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
     # Define loss function
-    triplet_loss = RankingLoss()
+    triplet_loss = TripletLoss()
     # Creates the train_step function
     train_step = make_train_step(model, triplet_loss, optimizer)
     # Creates the valid_step function
@@ -150,11 +152,9 @@ def main(args):
             if loss != loss:
                 raise ValueError("Loss is nan")
             train_loss += loss
-            #if batch_idx % 100 == 0:
-            print(loss)
-            #print("Batch {}/{}.  Batch loss: {}.".format(
-            #    batch_idx, len(train_dataloader), train_loss / (batch_idx+1)))
-
+            if batch_idx % 100 == 0:
+                print("Batch {}/{}.  Batch loss: {}.".format(
+                    batch_idx, len(train_dataloader), train_loss / (batch_idx+1)))
 
         for batch_idx, batch in enumerate(valid_dataloader):
             valid_loss += valid_step(*batch)
@@ -188,6 +188,8 @@ if __name__ == '__main__':
                         required=False, type=str)
     parser.add_argument('--learning-rate', help='Learning rate',
                         required=False, type=float, default=1e-3)
+    parser.add_argument('--reg-par', help='Regularization.',
+                        required=False, type=float, default=1e-5)
     parser.add_argument('--batch-size', help='Training batch size (needs to be 1 for cca)',
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', help='Training batch size',
