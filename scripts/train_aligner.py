@@ -31,9 +31,9 @@ def aligner_type(args):
     max_len = args.max_len
     device = 'cuda' if args.gpu else 'cpu'
     if args.aligner == 'cca':
-        align_fun = CCAaligner(input_dim, embed_dim, max_len, device=device)
+        align_fun = CCAaligner(input_dim, embed_dim, device=device)
     elif args.aligner == 'ssa':
-        align_fun = SSAaligner()
+        align_fun = SSAaligner(input_dim, embed_dim)
     else:
         align_fun = MeanAligner()
     return align_fun
@@ -78,17 +78,11 @@ def make_train_step(model, triplet_loss, optimizer):
         model.train()
         optimizer.zero_grad()
         xy = model(x, y)
-
         xz = model(x, z)
         loss = triplet_loss(xy, xz)
         loss.backward()
         grad_params = list(filter(lambda p: p.requires_grad, model.parameters()))
-
         optimizer.step()
-        # from torchviz import make_dot, make_dot_from_trace
-        # dot = make_dot(loss, params=dict(model.named_parameters()))
-        # dot.render('loss.png')
-
         return loss.item()
 
     # Returns the function that will be called inside the train loop
@@ -130,14 +124,14 @@ def main(args):
         optimizer = torch.optim.RMSprop(
             grad_params, lr=args.learning_rate, weight_decay=args.reg_par)
         scheduler = ExponentialLR(optimizer, gamma=0.9)
-    # else:
-    #     optimizer = optim.SGD(
-    #         [
-    #             {'params': model.lm.parameters(), 'lr': 1e-6},
-    #             {'params': model.aligner_fun.parameters(), 'lr': args.learning_rate}
-    #         ]
-    #     )
-    #     scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=args.learning_rate)
+    else:
+        optimizer = optim.SGD(
+            [
+                {'params': model.lm.parameters(), 'lr': 1e-6},
+                {'params': model.aligner_fun.parameters(), 'lr': args.learning_rate}
+            ]
+        )
+        scheduler = ExponentialLR(optimizer, gamma=0.9)
     # Define loss function
     triplet_loss = TripletLoss()
     # Creates the train_step function
@@ -161,8 +155,8 @@ def main(args):
 
         avg_train_loss = train_loss / len(train_dataloader)
         avg_valid_loss = valid_loss / len(valid_dataloader)
-        writer.add_scalar('training_loss', avg_train_loss)
-        writer.add_scalar('validation_loss', avg_valid_loss)
+        writer.add_scalar('training_loss', avg_train_loss, epoch)
+        writer.add_scalar('validation_loss', avg_valid_loss, epoch)
         best_valid_loss = checkpoint_step(args, model,
                                           avg_valid_loss, best_valid_loss)
 
@@ -194,7 +188,7 @@ if __name__ == '__main__':
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', help='Training batch size',
                         required=False, type=int, default=10)
-    parser.add_argument('--finetune', help='Perform finetuning (does not work with mean)',
+p    parser.add_argument('--finetune', help='Perform finetuning (does not work with mean)',
                         default=False, required=False, type=bool)
     parser.add_argument('-g','--gpu', help='Use GPU or not', default=False,
                         required=False, type=bool)

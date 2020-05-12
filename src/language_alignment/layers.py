@@ -31,13 +31,21 @@ class L2(nn.Module):
 
 
 class SSAaligner(nn.Module):
-    def __init__(self, compare=L1()):
+    def __init__(self, input_dim=512, embed_dim=64, compare=L1()):
         super(SSAaligner, self).__init__()
         self.compare = compare
+        self.projection = nn.Linear(input_dim, embed_dim)
+        torch.nn.init.xavier_uniform(self.projection.weight)
+        self.projection.bias.data.fill_(0.1)
 
     def __call__(self, z_x, z_y):
-        x = torch.squeeze(z_x).t()
-        y = torch.squeeze(z_y).t()
+        z_x = z_x.permute(0, 2, 1).contiguous()
+        z_y = z_y.permute(0, 2, 1).contiguous()
+        x = self.projection(z_x)
+        y = self.projection(z_y)
+        x = x.permute(0, 2, 1).contiguous()
+        y = y.permute(0, 2, 1).contiguous()
+
         s = self.compare(x, y)
 
         a = F.softmax(s, 1)
@@ -49,14 +57,11 @@ class SSAaligner(nn.Module):
 
 
 class CCAaligner(nn.Module):
-    def __init__(self, input_dim=512, embed_dim=64, max_len=1024, device='cpu'):
+    def __init__(self, input_dim=512, embed_dim=64, device='cpu'):
         super(CCAaligner, self).__init__()
         self.projection = nn.Linear(input_dim, embed_dim)
         #self.batch_norm = nn.BatchNorm1d(embed_dim, embed_dim)
         self.loss = CCAloss(embed_dim, device=device)
-        self.input_dim = input_dim
-        self.embed_dim = embed_dim
-        self.max_len = max_len
         torch.nn.init.xavier_uniform(self.projection.weight)
         self.projection.bias.data.fill_(0.1)
 
