@@ -188,7 +188,7 @@ if __name__ == '__main__':
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', help='Training batch size',
                         required=False, type=int, default=10)
-p    parser.add_argument('--finetune', help='Perform finetuning (does not work with mean)',
+    parser.add_argument('--finetune', help='Perform finetuning (does not work with mean)',
                         default=False, required=False, type=bool)
     parser.add_argument('-g','--gpu', help='Use GPU or not', default=False,
                         required=False, type=bool)
