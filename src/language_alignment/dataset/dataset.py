@@ -28,7 +28,7 @@ def seq2onehot(seq):
     #seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
     return torch.Tensor(np.array(seqs_x)).long()
 
-def collate_alignment_pairs(batch, device, max_len=1024):
+def collate_alignment_pairs(batch, device, max_len=1024, pad=0):
     """
     Padds matrices of variable length
     """
@@ -41,9 +41,10 @@ def collate_alignment_pairs(batch, device, max_len=1024):
     S1_padded = torch.zeros((len(batch), ml))
     S2_padded = torch.zeros((len(batch), ml))
     S3_padded = torch.zeros((len(batch), ml))
-    S1_padded[:, :] = 2
-    S2_padded[:, :] = 2
-    S3_padded[:, :] = 2
+    # Is this padding correct??
+    S1_padded[:, :] = pad
+    S2_padded[:, :] = pad
+    S3_padded[:, :] = pad
 
     # padd (double check for dim issues)
     for i in range(len(batch)):
@@ -61,9 +62,19 @@ def collate_alignment_pairs(batch, device, max_len=1024):
     return S1_padded.long(), S2_padded.long(), S3_padded.long()
 
 
+def random_swap(x):
+    """ Data augmentation. """
+    alpha = list('RXSGWIQATVKYCNLFDMPHE')
+    X = list(x)
+    a = np.random.randint(len(alpha))
+    i = np.random.randint(len(X))
+    X[i] = a
+    return X
+
+
 class AlignmentDataset(Dataset):
     """ Dataset for training and testing. """
-    def __init__(self, pairs, seqs):
+    def __init__(self, pairs, seqs, tokenizer=seq2onehot):
         """ Read in pairs of proteins
 
         Parameters
@@ -80,6 +91,7 @@ class AlignmentDataset(Dataset):
         """
         self.pairs = pairs
         self.seqs = seqs
+        self.tokenizer = tokenizer
 
     def random_peptide(self):
         if self.sampler is None:
@@ -109,12 +121,12 @@ class AlignmentDataset(Dataset):
         gene = self.pairs.loc[i, 0]
         pos = self.pairs.loc[i, 1]
         neg = self.pairs.loc[i, 2]
-        gene = str(self.seqs[gene])
-        pos = str(self.seqs[pos])
-        neg = str(self.seqs[neg])
-        gene = seq2onehot(gene).long()
-        pos = seq2onehot(pos).long()
-        neg = seq2onehot(neg).long()
+        gene = random_swap(str(self.seqs[gene]))
+        pos = random_swap(str(self.seqs[pos]))
+        neg = random_swap(str(self.seqs[neg]))
+        gene = self.tokenizer(gene).long()
+        pos = self.tokenizer(pos).long()
+        neg = self.tokenizer(neg).long()
         return gene, pos, neg
 
     def __iter__(self):
@@ -151,6 +163,7 @@ class MultinomialResample:
 class SubstituteSwap(object):
     """ Base pair substitution"""
     def __init__(self, p, alphabet):
+
         pass
 
     def __call(self, x):

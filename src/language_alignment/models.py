@@ -37,4 +37,4 @@ class AlignmentModel(torch.nn.Module):
 
     def predict(self, z_x, z_y):
         neg_corr = self.forward(z_x, z_y)
-        return torch.exp(neg_corr / 100.)
+        return torch.pow(neg_corr, 2)

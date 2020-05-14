@@ -1,4 +1,4 @@
-import sys
+0;95;0cimport sys
 import argparse
 import pandas as pd
 import numpy as np
@@ -22,7 +22,9 @@ from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
 from language_alignment.dataset import AlignmentDataset
-from language_alignment.dataset import collate_alignment_pairs
+from language_alignment.dataset import collate_alignment_pairs, seq2onehot
+
+from tape import TAPETokenizer
 
 
 def aligner_type(args):
@@ -59,13 +61,17 @@ def init_model(args):
     return model, device
 
 def init_dataloaders(args, device):
+    if args.arch in ['bert', 'unirep']:
+        tokenizer = TAPETokenizer(vocab='iupac')
+    else:
+        tokenizer = seq2onehot
     seqs = list((SeqIO.parse(open(args.fasta), format='fasta')))
     seqs = {x.id: x.seq for x in seqs}
     cfxn = lambda x: collate_alignment_pairs(x, device)
     train_pairs = pd.read_table(args.train_pairs, header=None, sep='\s+')
     valid_pairs = pd.read_table(args.valid_pairs, header=None, sep='\s+')
-    train_dataset = AlignmentDataset(train_pairs, seqs)
-    valid_dataset = AlignmentDataset(valid_pairs, seqs)
+    train_dataset = AlignmentDataset(train_pairs, seqs, tokenizer)
+    valid_dataset = AlignmentDataset(valid_pairs, seqs, tokenizer)
     train_dataloader = DataLoader(train_dataset, args.batch_size,
                                   shuffle=True, collate_fn=cfxn)
     valid_dataloader = DataLoader(valid_dataset, args.batch_size,
@@ -123,15 +129,15 @@ def main(args):
         grad_params = list(filter(lambda p: p.requires_grad, model.parameters()))
         optimizer = torch.optim.RMSprop(
             grad_params, lr=args.learning_rate, weight_decay=args.reg_par)
-        scheduler = ExponentialLR(optimizer, gamma=0.9)
+        scheduler = ExponentialLR(optimizer, gamma=0.8)
     else:
         optimizer = optim.SGD(
             [
-                {'params': model.lm.parameters(), 'lr': 1e-6},
+                {'params': model.lm.parameters(), 'lr': 5e-6},
                 {'params': model.aligner_fun.parameters(), 'lr': args.learning_rate}
             ]
         )
-        scheduler = ExponentialLR(optimizer, gamma=0.9)
+        scheduler = ExponentialLR(optimizer, gamma=0.8)
     # Define loss function
     triplet_loss = TripletLoss()
     # Creates the train_step function
@@ -142,10 +148,14 @@ def main(args):
     for epoch in range(1, args.epochs + 1):
         train_loss, valid_loss, best_valid_loss = 0.0, 0.0, 0.0
         for batch_idx, batch in enumerate(train_dataloader):
-            loss = train_step(*batch)
+            mloss = 0
+            for _ in range(3): # data echo
+                loss = train_step(*batch)
+                mloss += loss
+            train_loss += (mloss / 3)
             if loss != loss:
                 raise ValueError("Loss is nan")
-            train_loss += loss
+
             if batch_idx % 100 == 0:
                 print("Batch {}/{}.  Batch loss: {}.".format(
                     batch_idx, len(train_dataloader), train_loss / (batch_idx+1)))

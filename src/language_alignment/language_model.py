@@ -7,6 +7,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import tensorflow as tf
+from tape import ProteinBertModel, UniRepModel
 
 
 class LanguageModel(torch.nn.Module):
@@ -18,6 +19,20 @@ class LanguageModel(torch.nn.Module):
     def __call__(self, x):
         pass
 
+
+class Unirep(LanguageModel):
+    def __init__(self, device='cuda'):
+        self.model = UniRepModel.from_pretrained('babbler-1900')
+    def __call__(self, x):
+        output = model(token_ids)
+        return output[0]
+
+class Bert(LanguageModel):
+    def __init__(self, device='cuda'):
+        self.model = ProteinBertModel.from_pretrained('bert-base')
+    def __call__(self, x):
+        output = model(token_ids)
+        return output[0]
 
 class Roberta(LanguageModel):
     def __init__(self, path, trainable=False, device='cuda'):

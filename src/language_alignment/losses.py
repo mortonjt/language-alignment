@@ -104,9 +104,15 @@ class TripletLoss(nn.Module):
         #self.loss = nn.MarginRankingLoss()
 
     """ From FaceNet
-    https://arxiv.org/pdf/1503.03832.pdf"""
+    https://arxiv.org/pdf/1503.03832.pdf
+
+    Deep Metric Learing Using Triplet Network
+    https://arxiv.org/pdf/1412.6622.pdf
+    """
     def __call__(self, xy, xz, alpha=0.1):
-        loss = torch.clamp(xy - xz + alpha, min=0)
+        xy2 = torch.pow(xy, 2)
+        xz2 = torch.pow(xz, 2)
+        loss = torch.clamp(xy2 - xz2 + alpha, min=0)
         return loss
 
 class RankingLoss(nn.Module):
