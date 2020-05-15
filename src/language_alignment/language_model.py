@@ -11,7 +11,7 @@ from tape import ProteinBertModel, UniRepModel
 
 
 class LanguageModel(torch.nn.Module):
-    def __init__(self, path, device='cuda'):
+    def __init__(self, path=None, device='cuda'):
         super(LanguageModel, self).__init__()
         self.path = path
         self.device = device
@@ -21,18 +21,24 @@ class LanguageModel(torch.nn.Module):
 
 
 class Unirep(LanguageModel):
-    def __init__(self, device='cuda'):
+    def __init__(self, path=None, device='cuda'):
+        super(Unirep, self).__init__()
         self.model = UniRepModel.from_pretrained('babbler-1900')
+
     def __call__(self, x):
-        output = model(token_ids)
+        output = self.model(x)
         return output[0]
 
+
 class Bert(LanguageModel):
-    def __init__(self, device='cuda'):
+    def __init__(self, path=None, device='cuda'):
+        super(Bert, self).__init__()
         self.model = ProteinBertModel.from_pretrained('bert-base')
+
     def __call__(self, x):
-        output = model(token_ids)
+        output = self.model(x)
         return output[0]
+
 
 class Roberta(LanguageModel):
     def __init__(self, path, trainable=False, device='cuda'):
