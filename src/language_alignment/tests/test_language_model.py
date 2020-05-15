@@ -56,7 +56,7 @@ class TestUnirep(TestLanguageModel):
         res_x = torch.tensor([tokenizer.encode(self.x)]).to(device)
         res = self.model.lm(res_x)
         self.assertEqual(torch.isnan(res).sum().item(), 0)
-
+        print(res.shape)
 
 class TestBert(TestLanguageModel):
 
@@ -105,11 +105,11 @@ class TestRoberta(TestLanguageModel):
         exp_z = self.model.lm.model.encode(' '.join(list(self.z)))
 
         # Assert that onehot encodings are equal
-        res_x = seq2onehot(x)
+        res_x = seq2onehot(self.x)
         npt.assert_allclose(res_x.numpy(), exp_x.numpy())
-        res_y = seq2onehot(y)
+        res_y = seq2onehot(self.y)
         npt.assert_allclose(res_y.numpy(), exp_y.numpy())
-        res_z = seq2onehot(z)
+        res_z = seq2onehot(self.z)
         npt.assert_allclose(res_z.numpy(), exp_z.numpy())
 
         # Assert that extract features are not nan

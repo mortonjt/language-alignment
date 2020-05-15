@@ -1,22 +1,31 @@
 from Bio import SearchIO
-import numpy as np
 import pandas as pd
+import argparse
 import sys
 
 # blast_path = '../results/blast_domain_benchmark.xml'
 # dom_path = '../data/domains/common_pairs.txt'
 # out_path = '../results/blast_domain_alignments.txt'
+parser = argparse.ArgumentParser(description='Parse alignments')
+parser.add_argument('--path', help='Path to alignment output', required=True)
+parser.add_argument('--dom-path', help='Path to domain output', required=True)
+parser.add_argument('--out-path', help='Output path', required=True)
+parser.add_argument('--aligner', help='Type of alignment (blast or hmmer)', required=True)
+args = parser.parse_args()
 
-blast_path = sys.argv[1]
-dom_path = sys.argv[2]
-out_path = sys.argv[3]
+if aligner == 'blast':
+    fmt = 'blast-xml'
+elif aligner == 'hmmer':
+    fmt = 'hmmer3-text'
+else:
+    raise ValueError(f'Unsupported aligner {aligner}')
 
-domains = pd.read_table(dom_path, sep='\s+', header=None, dtype=str)
+domains = pd.read_table(args.dom_path, sep='\s+', header=None, dtype=str)
 sets = domains.apply(lambda x: tuple(list(x)), axis=1)
 domain_sets = set(list(sets.values))
-records = SearchIO.parse(blast_path, 'blast-xml')
+records = SearchIO.parse(args.path, fmt)
 hit_list = []
-with open(out_path, 'w') as out_handle:
+with open(args.out_path, 'w') as out_handle:
     for idx, cur in enumerate(records):
         for hit in cur.hits:
             if (cur.id, hit.id) in domain_sets or (hit.id, cur.id) in domain_sets:

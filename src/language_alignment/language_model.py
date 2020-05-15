@@ -27,7 +27,7 @@ class Unirep(LanguageModel):
 
     def __call__(self, x):
         output = self.model(x)
-        return output[0]
+        return output[0].permute(0, 2, 1)
 
 
 class Bert(LanguageModel):
@@ -37,7 +37,7 @@ class Bert(LanguageModel):
 
     def __call__(self, x):
         output = self.model(x)
-        return output[0]
+        return output[0].permute(0, 2, 1)
 
 
 class Roberta(LanguageModel):

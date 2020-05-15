@@ -59,7 +59,10 @@ def collate_alignment_pairs(batch, device, max_len=1024, pad=0):
     if S3_padded.shape[1] > max_len:
         S3_padded = S3_padded[:, :max_len]
 
-    return S1_padded.long(), S2_padded.long(), S3_padded.long()
+    s1 = S1_padded.long().to(device)
+    s2 = S2_padded.long().to(device)
+    s3 = S3_padded.long().to(device)
+    return s1, s2, s3
 
 
 def random_swap(x):
@@ -68,7 +71,7 @@ def random_swap(x):
     X = list(x)
     a = np.random.randint(len(alpha))
     i = np.random.randint(len(X))
-    X[i] = a
+    X[i] = alpha[a]
     return X
 
 

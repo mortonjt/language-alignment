@@ -1,4 +1,4 @@
-0;95;0cimport sys
+import sys
 import argparse
 import pandas as pd
 import numpy as np
@@ -16,14 +16,12 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.nn.utils import clip_grad_norm_
-
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
 from language_alignment.dataset import AlignmentDataset
 from language_alignment.dataset import collate_alignment_pairs, seq2onehot
-
 from tape import TAPETokenizer
 
 
@@ -61,11 +59,16 @@ def init_model(args):
     return model, device
 
 def init_dataloaders(args, device):
-    if args.arch in ['bert', 'unirep']:
-        tokenizer = TAPETokenizer(vocab='iupac')
+    if args.arch == 'bert':
+        tr = TAPETokenizer(vocab='iupac')
+        tokenizer = lambda x: torch.tensor([tr.encode(x)]).squeeze().to(device)
+    elif args.arch == 'unirep':
+        tr = TAPETokenizer(vocab='unirep')
+        tokenizer = lambda x: torch.tensor([tr.encode(x)]).squeeze().to(device)
     else:
         tokenizer = seq2onehot
     seqs = list((SeqIO.parse(open(args.fasta), format='fasta')))
+
     seqs = {x.id: x.seq for x in seqs}
     cfxn = lambda x: collate_alignment_pairs(x, device)
     train_pairs = pd.read_table(args.train_pairs, header=None, sep='\s+')
