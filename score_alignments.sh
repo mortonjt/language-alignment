@@ -35,7 +35,7 @@ do
 
     cmd="python scripts/score_alignment.py $alignments $fasta_file $pair_file $dom_file $out_file"
     echo $cmd
-    sbatch -p ccb --wrap "$cmd"
+    sbatch -p genx --wrap "$cmd"
 done
 #echo "Attention $epoch is done"
 
@@ -60,7 +60,7 @@ do
     #python scripts/score_alignment.py $alignments $fasta_file $pair_file $dom_file $out_file
     cmd="python scripts/score_alignment.py $alignments $fasta_file $pair_file $dom_file $out_file"
     echo $cmd
-    sbatch -p ccb --wrap "$cmd"
+    sbatch -p genx --wrap "$cmd"
 
 done
 #echo "Elmo $epoch is done"
