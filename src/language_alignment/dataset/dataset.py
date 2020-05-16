@@ -28,7 +28,7 @@ def seq2onehot(seq):
     #seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
     return torch.Tensor(np.array(seqs_x)).long()
 
-def collate_alignment_pairs(batch, device, max_len=1024, pad=0):
+def collate_alignment_pairs(batch, max_len=1024, pad=0):
     """
     Padds matrices of variable length
 
@@ -38,7 +38,6 @@ def collate_alignment_pairs(batch, device, max_len=1024, pad=0):
     lengths = torch.tensor(
         [(t[0].shape[0], t[1].shape[0], t[2].shape[0])
              for t in batch])
-    #lengths = lengths.to(device)
     ml = lengths.max()
     S1_padded = torch.zeros((len(batch), ml))
     S2_padded = torch.zeros((len(batch), ml))
@@ -61,9 +60,9 @@ def collate_alignment_pairs(batch, device, max_len=1024, pad=0):
     if S3_padded.shape[1] > max_len:
         S3_padded = S3_padded[:, :max_len]
 
-    s1 = S1_padded.long().to(device)
-    s2 = S2_padded.long().to(device)
-    s3 = S3_padded.long().to(device)
+    s1 = S1_padded.long()
+    s2 = S2_padded.long()
+    s3 = S3_padded.long()
     return s1, s2, s3
 
 
@@ -153,23 +152,3 @@ class AlignmentDataset(Dataset):
             iter_end = min(iter_start + per_worker, end)
             for i in range(iter_start, iter_end):
                 yield self.__getitem__(i)
-
-
-class MultinomialResample:
-    def __init__(self, trans, p):
-        self.p = (1-p)*torch.eye(trans.size(0)).to(trans.device) + p*trans
-
-    def __call__(self, x):
-        #print(x.size(), x.dtype)
-        p = self.p[x] # get distribution for each x
-        return torch.multinomial(p, 1).view(-1) # sample from distribution
-
-
-class SubstituteSwap(object):
-    """ Base pair substitution"""
-    def __init__(self, p, alphabet):
-
-        pass
-
-    def __call(self, x):
-        pass

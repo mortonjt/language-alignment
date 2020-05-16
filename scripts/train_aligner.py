@@ -1,9 +1,6 @@
-import sys
 import argparse
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from functools import reduce
 import datetime
 import glob
 import os
@@ -15,7 +12,6 @@ from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ExponentialLR
-from torch.nn.utils import clip_grad_norm_
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
@@ -33,7 +29,6 @@ class LightningAligner(pl.LightningModule):
 
     def __init__(self, args):
         super(LightningAligner, self).__init__()
-        self.device = 'cuda' if args.gpu else 'cpu'
         cls, path = pretrained_language_models[args.arch]
         self.args = args
         if args.lm is not None:
@@ -44,21 +39,20 @@ class LightningAligner(pl.LightningModule):
 
         seqs = list((SeqIO.parse(open(self.args.fasta), format='fasta')))
         self.seqs = {x.id: x.seq for x in seqs}
-        self.cfxn = lambda x: collate_alignment_pairs(x, device)
+        self.cfxn = lambda x: collate_alignment_pairs(x)
         self.cfxn = collate_alignment_pairs
         self.triplet_loss = TripletLoss()
 
         if args.arch == 'bert':
             tr = TAPETokenizer(vocab='iupac')
-            f = lambda x: torch.tensor([tr.encode(x)]).squeeze().to(device)
+            f = lambda x: torch.tensor([tr.encode(x)]).squeeze()
             self.tokenizer = f
         elif args.arch == 'unirep':
             tr = TAPETokenizer(vocab='unirep')
-            f = lambda x: torch.tensor([tr.encode(x)]).squeeze().to(device)
+            f = lambda x: torch.tensor([tr.encode(x)]).squeeze()
             self.tokenizer = f
         else:
             self.tokenizer = seq2onehot
-
 
     def forward(self, x, y):
         return self.model.forward(x, y)
@@ -67,7 +61,7 @@ class LightningAligner(pl.LightningModule):
         input_dim = self.args.lm_embed_dim
         embed_dim = self.args.aligner_embed_dim
         if self.args.aligner == 'cca':
-            align_fun = CCAaligner(input_dim, embed_dim, device=self.device)
+            align_fun = CCAaligner(input_dim, embed_dim)
         elif self.args.aligner == 'ssa':
             align_fun = SSAaligner(input_dim, embed_dim)
         else:
@@ -83,28 +77,31 @@ class LightningAligner(pl.LightningModule):
         writer = SummaryWriter(full_path)
         return writer
 
-    def train_dataloaders(self):
-
-        train_pairs = pd.read_table(self.args.train_pairs, header=None, sep='\s+')
-        train_dataset = AlignmentDataset(train_pairs, self.seqs, self.tokenizer)
+    def train_dataloader(self):
+        train_pairs = pd.read_table(
+            self.args.train_pairs, header=None, sep='\s+')
+        train_dataset = AlignmentDataset(
+            train_pairs, self.seqs, self.tokenizer)
         train_dataloader = DataLoader(train_dataset, self.args.batch_size,
                                       shuffle=True, collate_fn=self.cfxn)
         return train_dataloader
 
     def valid_dataloader(self):
-        valid_pairs = pd.read_table(self.args.valid_pairs, header=None, sep='\s+')
-        valid_dataset = AlignmentDataset(valid_pairs, self.seqs, self.tokenizer)
-n        valid_dataloader = DataLoader(valid_dataset, self.args.batch_size,
+        valid_pairs = pd.read_table(
+            self.args.valid_pairs, header=None, sep='\s+')
+        valid_dataset = AlignmentDataset(
+            valid_pairs, self.seqs, self.tokenizer)
+        valid_dataloader = DataLoader(valid_dataset, self.args.batch_size,
                                       shuffle=True, collate_fn=self.cfxn)
         return valid_dataloader
 
-    def train_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx):
         x, y, z = batch
         self.model.train()
         xy = self.model(x, y)
         xz = self.model(x, z)
         loss = self.triplet_loss(xy, xz)
-        return {'loss': loss.item()}
+        return {'loss': loss}
 
     def valid_step(self, batch, batch_idx):
         x, y, z = batch
@@ -118,7 +115,7 @@ n        valid_dataloader = DataLoader(valid_dataset, self.args.batch_size,
         if not self.args.finetune:
             for p in self.model.lm.parameters():
                 p.requires_grad = False
-            grad_params = list(filter(lambda p: p.requires_grad, model.parameters()))
+            grad_params = list(filter(lambda p: p.requires_grad, self.model.parameters()))
             optimizer = torch.optim.RMSprop(
                 grad_params, lr=self.args.learning_rate, weight_decay=self.args.reg_par)
 
@@ -148,9 +145,9 @@ n        valid_dataloader = DataLoader(valid_dataset, self.args.batch_size,
                             help='Aligner type. Choices include (mean, cca, ssa).',
                             required=False, type=str, default='mean')
         parser.add_argument('--lm-embed-dim', help='Language model embedding dimension.',
-                            required=False, type=str)
+                            required=False, type=int)
         parser.add_argument('--aligner-embed-dim', help='Aligner embedding dimension.',
-                            required=False, type=str)
+                            required=False, type=int)
         parser.add_argument('--reg-par', help='Regularization.',
                             required=False, type=float, default=1e-5)
         parser.add_argument('--max-len', help='Maximum length of protein', default=1024,
