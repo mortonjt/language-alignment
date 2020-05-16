@@ -83,7 +83,8 @@ class LightningAligner(pl.LightningModule):
         train_dataset = AlignmentDataset(
             train_pairs, self.seqs, self.tokenizer)
         train_dataloader = DataLoader(train_dataset, self.args.batch_size,
-                                      shuffle=True, collate_fn=self.cfxn)
+                                      shuffle=True, collate_fn=self.cfxn,
+                                      num_workers=self.args.num_workers)
         return train_dataloader
 
     def valid_dataloader(self):
@@ -92,7 +93,8 @@ class LightningAligner(pl.LightningModule):
         valid_dataset = AlignmentDataset(
             valid_pairs, self.seqs, self.tokenizer)
         valid_dataloader = DataLoader(valid_dataset, self.args.batch_size,
-                                      shuffle=True, collate_fn=self.cfxn)
+                                      shuffle=True, collate_fn=self.cfxn,
+                                      num_workers=self.args.num_workers)
         return valid_dataloader
 
     def training_step(self, batch, batch_idx):
@@ -196,6 +198,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpus', type=int, default=None)
     parser.add_argument('--grad-accum', type=int, default=1)
     parser.add_argument('--nodes', type=int, default=1)
+    parser.add_argument('--num_workers', type=int, default=1)
+
     parser = LightningAligner.add_model_specific_args(parser)
     args = parser.parse_args()
     main(args)

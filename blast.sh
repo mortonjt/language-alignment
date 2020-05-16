@@ -45,8 +45,8 @@ conda activate alignment
 # python scripts/parse_blast_alignment.py $blast_results $pairs $blast_alignments
 
 DATADIR=/mnt/home/jmorton/research/gert/icml2020/language-alignment
+inpath=/mnt/home/jmorton/research/gert/icml2020/language-alignment/data/scop
 inpath=$DATADIR/data/alignment-train/testing-set/test_pfam.fa
-outdir=$DATADIR/results/distances/blast/pfam
 mkdir -p $outdir
 makeblastdb -in $inpath -dbtype 'prot' -out $outdir
 blastp -db $outdir \
