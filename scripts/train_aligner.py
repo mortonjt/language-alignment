@@ -60,8 +60,11 @@ class LightningAligner(pl.LightningModule):
     def aligner_type(self):
         input_dim = self.args.lm_embed_dim
         embed_dim = self.args.aligner_embed_dim
+
         if self.args.aligner == 'cca':
-            align_fun = CCAaligner(input_dim, embed_dim)
+            # hack for cuda
+            print(self.device)
+            align_fun = CCAaligner(input_dim, embed_dim, device=self.device)
         elif self.args.aligner == 'ssa':
             align_fun = SSAaligner(input_dim, embed_dim)
         else:
@@ -173,7 +176,9 @@ def main(args):
         max_nb_epochs=args.epochs,
         gpus=args.gpus,
         nb_gpu_nodes=args.nodes,
-        accumulate_grad_batches=args.grad_accum
+        accumulate_grad_batches=args.grad_accum,
+        distributed_backend='dp',
+        precision=args.precision
     )
 
     ckpt_path = os.path.join(
@@ -198,7 +203,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpus', type=int, default=None)
     parser.add_argument('--grad-accum', type=int, default=1)
     parser.add_argument('--nodes', type=int, default=1)
-    parser.add_argument('--num_workers', type=int, default=1)
+    parser.add_argument('--num-workers', type=int, default=1)
+    parser.add_argument('--precision', type=int, default=32)
 
     parser = LightningAligner.add_model_specific_args(parser)
     args = parser.parse_args()

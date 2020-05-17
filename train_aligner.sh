@@ -26,25 +26,28 @@ fasta_file=$datadir/seqs.fasta
 results_dir=results/aligner/model
 model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
 #model=/mnt/home/jmorton/ceph/checkpoints/uniref90/base/
-lm=robert
+
+lm=unirep
 method=ssa
 echo $method
 echo $lm
+dim=
 python scripts/train_aligner.py \
     --train-pairs $train_file \
     --valid-pairs $valid_file \
     --fasta $fasta_file \
     --arch $lm \
-    --batch-size 1 \
+    --batch-size 128 \
     --aligner $method \
     --learning-rate 1e-3 \
     --reg-par 1e-5 \
     --epochs 5 \
     -m $model \
     --max-len 1024 \
-    --lm-embed-dim 1900 \
+    --lm-embed-dim $dim \
     --aligner-embed-dim 1024 \
     --gpus 4 \
     --num-workers 20 \
     --grad-accum 128 \
+    --precision 32 \
     -o results/aligner/${method}_${lm}_finetune_mode_500k

@@ -8,13 +8,11 @@ class CCAloss(object):
     This is from the DeepCCA repository
     Author: Michaelvll
     """
-    def __init__(self, outdim_size, use_all_singular_values=True,
-                 device='cpu'):
+    def __init__(self, outdim_size, use_all_singular_values=True, device='cpu'):
         super(CCAloss, self).__init__()
         self.outdim_size = outdim_size
         self.use_all_singular_values = use_all_singular_values
         self.device = device
-        # print(device)
 
     def __call__(self, H1, H2):
         """
@@ -43,12 +41,13 @@ class CCAloss(object):
         H2bar = H2 - H2.mean(dim=1).unsqueeze(dim=1)
         # assert torch.isnan(H1bar).sum().item() == 0
         # assert torch.isnan(H2bar).sum().item() == 0
-
+        eye1 = torch.eye(o1).to(H1bar.device)
+        eye2 = torch.eye(o2).to(H2bar.device)
         SigmaHat12 = (1.0 / (m - 1)) * torch.matmul(H1bar, H2bar.t())
         SigmaHat11 = (1.0 / (m - 1)) * torch.matmul(
-            H1bar, H1bar.t()) + r1 * torch.eye(o1, device=self.device)
+            H1bar, H1bar.t()) + r1 * eye1
         SigmaHat22 = (1.0 / (m - 1)) * torch.matmul(
-            H2bar, H2bar.t()) + r2 * torch.eye(o2, device=self.device)
+            H2bar, H2bar.t()) + r2 * eye2
         # assert torch.isnan(SigmaHat11).sum().item() == 0
         # assert torch.isnan(SigmaHat12).sum().item() == 0
         # assert torch.isnan(SigmaHat22).sum().item() == 0
@@ -90,9 +89,9 @@ class CCAloss(object):
             # just the top self.outdim_size singular values are used
             trace_TT = torch.matmul(Tval.t(), Tval)
             # regularization for more stability
-            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0]) * r1).to(self.device))
+            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0]) * r1))
             U, V = torch.symeig(trace_TT, eigenvectors=True)
-            U = torch.where(U > eps, U, (torch.ones(U.shape).float() * eps).to(self.device))
+            U = torch.where(U > eps, U, (torch.ones(U.shape).float() * eps))
             U = U.topk(self.outdim_size)[0]
             corr = torch.sum(torch.sqrt(U))
         return -corr
