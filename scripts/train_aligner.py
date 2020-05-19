@@ -11,7 +11,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
@@ -31,6 +31,7 @@ class LightningAligner(pl.LightningModule):
         super(LightningAligner, self).__init__()
         cls, path = pretrained_language_models[args.arch]
         self.args = args
+        self.hparams = args
         if args.lm is not None:
             path = args.lm
         align_fun = self.aligner_type()
@@ -85,7 +86,7 @@ class LightningAligner(pl.LightningModule):
             self.args.train_pairs, header=None, sep='\s+')
         train_dataset = AlignmentDataset(
             train_pairs, self.seqs, self.tokenizer)
-        train_dataloader = DataLoader(train_dataset, self.args.batch_size,
+        train_dataloader = DataLoader(train_dataset, self.hparams.batch_size,
                                       shuffle=True, collate_fn=self.cfxn,
                                       num_workers=self.args.num_workers)
         return train_dataloader
@@ -95,7 +96,7 @@ class LightningAligner(pl.LightningModule):
             self.args.valid_pairs, header=None, sep='\s+')
         valid_dataset = AlignmentDataset(
             valid_pairs, self.seqs, self.tokenizer)
-        valid_dataloader = DataLoader(valid_dataset, self.args.batch_size,
+        valid_dataloader = DataLoader(valid_dataset, self.hparams.batch_size,
                                       shuffle=True, collate_fn=self.cfxn,
                                       num_workers=self.args.num_workers)
         return valid_dataloader
@@ -103,9 +104,12 @@ class LightningAligner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y, z = batch
         self.model.train()
+        print(x.shape, y.shape, z.shape)
         xy = self.model(x, y)
         xz = self.model(x, z)
         loss = self.triplet_loss(xy, xz)
+        assert torch.isnan(loss).item() == False
+        del xy, xz
         return {'loss': loss}
 
     def valid_step(self, batch, batch_idx):
@@ -123,16 +127,17 @@ class LightningAligner(pl.LightningModule):
             grad_params = list(filter(lambda p: p.requires_grad, self.model.parameters()))
             optimizer = torch.optim.RMSprop(
                 grad_params, lr=self.args.learning_rate, weight_decay=self.args.reg_par)
-
         else:
-            optimizer = optim.SGD(
+            optimizer = torch.optim.RMSprop(
                 [
                     {'params': self.model.lm.parameters(), 'lr': 5e-6},
                     {'params': self.model.aligner_fun.parameters(),
-                     'lr': self.args.learning_rate}
+                     'lr': self.args.learning_rate,
+                     'weight_decay': self.args.reg_par}
                 ]
             )
-        return optimizer
+        scheduler = ReduceLROnPlateau(optimizer)
+        return [optimizer], [scheduler]
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -178,7 +183,9 @@ def main(args):
         nb_gpu_nodes=args.nodes,
         accumulate_grad_batches=args.grad_accum,
         distributed_backend='dp',
-        precision=args.precision
+        precision=args.precision,
+        check_val_every_n_epoch=0.1,
+        auto_scale_batch_size='power'
     )
 
     ckpt_path = os.path.join(
@@ -207,5 +214,5 @@ if __name__ == '__main__':
     parser.add_argument('--precision', type=int, default=32)
 
     parser = LightningAligner.add_model_specific_args(parser)
-    args = parser.parse_args()
-    main(args)
+    hparams = parser.parse_args()
+    main(hparams)

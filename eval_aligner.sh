@@ -17,16 +17,16 @@ module load cudnn/v7.6.2-cuda-10.0
 source ~/venvs/transformers-torch/bin/activate
 cd /mnt/home/jmorton/research/gert/icml2020/language-alignment
 datadir=/mnt/home/jmorton/research/gert/icml2020/language-alignment/data/alignment-train
-
+lm=roberta
 for method in ssa cca
 do
     for dataset in pfam scop
     do
         test_file=$datadir/testing-set/test_${dataset}.txt
         fasta_file=$datadir/seqs.fasta
-        results_dir=results/aligner/model
-        model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
-
+        # results_dir=results/aligner
+        # model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
+        model=/mnt/home/jmorton/research/gert/icml2020/language-alignment
         echo $method
         python scripts/evaluate_aligner.py \
             --test-pairs $test_file \
@@ -34,7 +34,7 @@ do
             -m $model \
             --arch 'roberta' \
             --aligner $method \
-            --model-path results/aligner/${method}_finetune_model \
+            --model-path $model/results/aligner/${method}_${lm}_finetune_model \
             --gpu True \
             --lm-embed-dim 1024 \
             --aligner-embed-dim 1024 \

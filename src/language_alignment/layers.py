@@ -90,5 +90,5 @@ class CCAaligner(nn.Module):
             x_, y_ = x[b, :, :], y[b, :, :]
             x_ = torch.unsqueeze(x_, 0)
             y_ = torch.unsqueeze(y_, 0)
-            l += self.loss(x_, y_)
+            l += self.loss(x_, y_) / batch_size
         return l

@@ -21,12 +21,12 @@ class CCAloss(object):
         There can be other formulations.
         """
 
-        r1 = 1e-4
-        r2 = 1e-4
+        r1 = 1e-3
+        r2 = 1e-3
         eps = 1e-9
 
-        #assert torch.isnan(H1).sum().item() == 0
-        #assert torch.isnan(H2).sum().item() == 0
+        assert torch.isnan(H1).sum().item() == 0
+        assert torch.isnan(H2).sum().item() == 0
         H1, H2 = torch.squeeze(H1).t(), torch.squeeze(H2).t()
 
         o1 = o2 = H1.size(0)
@@ -34,13 +34,13 @@ class CCAloss(object):
         m = H1.size(1)
         #         print(H1.size())
 
-        #assert torch.isnan(H1).sum().item() == 0
-        #assert torch.isnan(H2).sum().item() == 0
+        assert torch.isnan(H1).sum().item() == 0
+        assert torch.isnan(H2).sum().item() == 0
 
         H1bar = H1 - H1.mean(dim=1).unsqueeze(dim=1)
         H2bar = H2 - H2.mean(dim=1).unsqueeze(dim=1)
-        # assert torch.isnan(H1bar).sum().item() == 0
-        # assert torch.isnan(H2bar).sum().item() == 0
+        assert torch.isnan(H1bar).sum().item() == 0
+        assert torch.isnan(H2bar).sum().item() == 0
         eye1 = torch.eye(o1).to(H1bar.device)
         eye2 = torch.eye(o2).to(H2bar.device)
         SigmaHat12 = (1.0 / (m - 1)) * torch.matmul(H1bar, H2bar.t())
@@ -48,17 +48,17 @@ class CCAloss(object):
             H1bar, H1bar.t()) + r1 * eye1
         SigmaHat22 = (1.0 / (m - 1)) * torch.matmul(
             H2bar, H2bar.t()) + r2 * eye2
-        # assert torch.isnan(SigmaHat11).sum().item() == 0
-        # assert torch.isnan(SigmaHat12).sum().item() == 0
-        # assert torch.isnan(SigmaHat22).sum().item() == 0
+        assert torch.isnan(SigmaHat11).sum().item() == 0
+        assert torch.isnan(SigmaHat12).sum().item() == 0
+        assert torch.isnan(SigmaHat22).sum().item() == 0
 
         # Calculating the root inverse of covariance matrices by using eigen decomposition
         [D1, V1] = torch.symeig(SigmaHat11, eigenvectors=True)
         [D2, V2] = torch.symeig(SigmaHat22, eigenvectors=True)
-        # assert torch.isnan(D1).sum().item() == 0
-        # assert torch.isnan(D2).sum().item() == 0
-        # assert torch.isnan(V1).sum().item() == 0
-        # assert torch.isnan(V2).sum().item() == 0
+        assert torch.isnan(D1).sum().item() == 0
+        assert torch.isnan(D2).sum().item() == 0
+        assert torch.isnan(V1).sum().item() == 0
+        assert torch.isnan(V2).sum().item() == 0
 
         # Added to increase stability
         posInd1 = torch.gt(D1, eps).nonzero()[:, 0]
