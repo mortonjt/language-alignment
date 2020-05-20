@@ -1,14 +1,21 @@
 import torch
 from language_alignment.layers import MeanAligner, CCAaligner, SSAaligner
+import subprocess
 
 
 class AlignmentModel(torch.nn.Module):
 
-    def __init__(self, aligner):
+    def __init__(self, aligner, loss):
         """
+        Parameters
+        ----------
+        aligner : Aligner instance
+           Either MeanAligner, CCAaligner or SSAaligner
+        loss : TripletLoss instance
         """
         super(AlignmentModel, self).__init__()
         self.aligner_fun = aligner
+        self.loss_fun = loss
 
     def load_language_model(self, cls, path, device='cuda'):
         """
@@ -38,3 +45,12 @@ class AlignmentModel(torch.nn.Module):
     def predict(self, z_x, z_y):
         neg_corr = self.forward(z_x, z_y)
         return torch.pow(neg_corr, 2)
+
+    def loss(self, x, y, z):
+        h_x = self.lm(x)
+        h_y = self.lm(y)
+        h_z = self.lm(z)
+        xy = self.aligner_fun(h_x, h_y)
+        xz = self.aligner_fun(h_x, h_z)
+        l = self.loss_fun(xy, xz)
+        return l

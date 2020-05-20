@@ -25,8 +25,8 @@ do
         test_file=$datadir/testing-set/test_${dataset}.txt
         fasta_file=$datadir/seqs.fasta
         # results_dir=results/aligner
-        # model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
-        model=/mnt/home/jmorton/research/gert/icml2020/language-alignment
+        model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
+        # model=/mnt/home/jmorton/research/gert/icml2020/language-alignment
         echo $method
         python scripts/evaluate_aligner.py \
             --test-pairs $test_file \

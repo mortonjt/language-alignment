@@ -8,6 +8,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import tensorflow as tf
 from tape import ProteinBertModel, UniRepModel
+from allennlp.commands.elmo import ElmoEmbedder
 
 
 class LanguageModel(torch.nn.Module):
@@ -27,8 +28,27 @@ class Unirep(LanguageModel):
 
     def __call__(self, x):
         output = self.model(x)
-
+        print(output[0].shape)
+        print(output[1].shape)
         return output[0].permute(0, 2, 1)
+
+
+class Seqvec(LanguageModel):
+    def __init__(self, path=None, device='cuda'):
+        super(Seqvec, self).__init__()
+        weights_path = f'{path}/weights.hdf5'
+        options_path = f'{path}/options.json'
+        self.model = ElmoEmbedder(
+            weight_file=str(weights_path),
+            options_file=str(options_path)).elmo_bilm
+
+    def __call__(self, x):
+        output = self.model(x)['activations'][-1]
+        embed = output.view(
+            output.shape[0], output.shape[1] * output.shape[2]
+        )
+        embed = embed.unsqueeze(0).permute(0, 2, 1)
+        return embed
 
 
 class Bert(LanguageModel):

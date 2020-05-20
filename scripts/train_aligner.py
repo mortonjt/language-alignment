@@ -11,7 +11,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
@@ -21,8 +21,9 @@ from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
 from language_alignment.dataset import AlignmentDataset
-from language_alignment.dataset import collate_alignment_pairs, seq2onehot
+from language_alignment.dataset import (collate_alignment_pairs, collate_elmo, seq2onehot)
 from tape import TAPETokenizer
+from allennlp.modules.elmo import batch_to_ids
 
 
 class LightningAligner(pl.LightningModule):
@@ -30,19 +31,19 @@ class LightningAligner(pl.LightningModule):
     def __init__(self, args):
         super(LightningAligner, self).__init__()
         cls, path = pretrained_language_models[args.arch]
-        self.args = args
         self.hparams = args
         if args.lm is not None:
             path = args.lm
         align_fun = self.aligner_type()
-        self.model = AlignmentModel(aligner=align_fun)
+        self.model = AlignmentModel(aligner=align_fun, loss=TripletLoss())
         self.model.load_language_model(cls, path)
-
-        seqs = list((SeqIO.parse(open(self.args.fasta), format='fasta')))
+        seqs = list((SeqIO.parse(open(self.hparams.fasta), format='fasta')))
         self.seqs = {x.id: x.seq for x in seqs}
-        self.cfxn = lambda x: collate_alignment_pairs(x)
-        self.cfxn = collate_alignment_pairs
-        self.triplet_loss = TripletLoss()
+
+        if args.arch == 'seqvec':
+            self.cfxn = collate_elmo
+        else:
+            self.cfxn = collate_alignment_pairs
 
         if args.arch == 'bert':
             tr = TAPETokenizer(vocab='iupac')
@@ -52,6 +53,8 @@ class LightningAligner(pl.LightningModule):
             tr = TAPETokenizer(vocab='unirep')
             f = lambda x: torch.tensor([tr.encode(x)]).squeeze()
             self.tokenizer = f
+        elif args.arch == 'seqvec':
+            self.tokenizer = lambda x : batch_to_ids(x)
         else:
             self.tokenizer = seq2onehot
 
@@ -59,14 +62,14 @@ class LightningAligner(pl.LightningModule):
         return self.model.forward(x, y)
 
     def aligner_type(self):
-        input_dim = self.args.lm_embed_dim
-        embed_dim = self.args.aligner_embed_dim
+        input_dim = self.hparams.lm_embed_dim
+        embed_dim = self.hparams.aligner_embed_dim
 
-        if self.args.aligner == 'cca':
+        if self.hparams.aligner == 'cca':
             # hack for cuda
             print(self.device)
             align_fun = CCAaligner(input_dim, embed_dim, device=self.device)
-        elif self.args.aligner == 'ssa':
+        elif self.hparams.aligner == 'ssa':
             align_fun = SSAaligner(input_dim, embed_dim)
         else:
             align_fun = MeanAligner()
@@ -83,60 +86,54 @@ class LightningAligner(pl.LightningModule):
 
     def train_dataloader(self):
         train_pairs = pd.read_table(
-            self.args.train_pairs, header=None, sep='\s+')
+            self.hparams.train_pairs, header=None, sep='\s+')
         train_dataset = AlignmentDataset(
             train_pairs, self.seqs, self.tokenizer)
-        train_dataloader = DataLoader(train_dataset, self.hparams.batch_size,
+        train_dataloader = DataLoader(train_dataset, batch_size=self.hparams.batch_size,
                                       shuffle=True, collate_fn=self.cfxn,
-                                      num_workers=self.args.num_workers)
+                                      num_workers=self.hparams.num_workers)
         return train_dataloader
 
-    def valid_dataloader(self):
+    def val_dataloader(self):
         valid_pairs = pd.read_table(
-            self.args.valid_pairs, header=None, sep='\s+')
+            self.hparams.valid_pairs, header=None, sep='\s+')
         valid_dataset = AlignmentDataset(
             valid_pairs, self.seqs, self.tokenizer)
-        valid_dataloader = DataLoader(valid_dataset, self.hparams.batch_size,
-                                      shuffle=True, collate_fn=self.cfxn,
-                                      num_workers=self.args.num_workers)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=self.hparams.batch_size,
+                                      shuffle=False, collate_fn=self.cfxn,
+                                      num_workers=self.hparams.num_workers)
         return valid_dataloader
 
     def training_step(self, batch, batch_idx):
+
         x, y, z = batch
         self.model.train()
-        print(x.shape, y.shape, z.shape)
-        xy = self.model(x, y)
-        xz = self.model(x, z)
-        loss = self.triplet_loss(xy, xz)
-        assert torch.isnan(loss).item() == False
-        del xy, xz
+        loss = self.model.loss(x, y, z)
         return {'loss': loss}
 
-    def valid_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx):
         x, y, z = batch
         self.model.eval()
-        xy = self.model(x, y)
-        xz = self.model(x, z)
-        loss = self.triplet_loss(xy, xz)
-        return {'val_loss': loss.item()}
+        loss = self.model.loss(x, y, z)
+        return {'val_loss': loss}
 
     def configure_optimizers(self):
-        if not self.args.finetune:
+        if not self.hparams.finetune:
             for p in self.model.lm.parameters():
                 p.requires_grad = False
             grad_params = list(filter(lambda p: p.requires_grad, self.model.parameters()))
             optimizer = torch.optim.RMSprop(
-                grad_params, lr=self.args.learning_rate, weight_decay=self.args.reg_par)
+                grad_params, lr=self.hparams.learning_rate, weight_decay=self.hparams.reg_par)
         else:
             optimizer = torch.optim.RMSprop(
                 [
                     {'params': self.model.lm.parameters(), 'lr': 5e-6},
                     {'params': self.model.aligner_fun.parameters(),
-                     'lr': self.args.learning_rate,
-                     'weight_decay': self.args.reg_par}
+                     'lr': self.hparams.learning_rate,
+                     'weight_decay': self.hparams.reg_par}
                 ]
             )
-        scheduler = ReduceLROnPlateau(optimizer)
+        scheduler = StepLR(optimizer, step_size=1)
         return [optimizer], [scheduler]
 
     @staticmethod
@@ -185,7 +182,7 @@ def main(args):
         distributed_backend='dp',
         precision=args.precision,
         check_val_every_n_epoch=0.1,
-        auto_scale_batch_size='power'
+        # auto_scale_batch_size='power',
     )
 
     ckpt_path = os.path.join(

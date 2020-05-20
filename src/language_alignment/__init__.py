@@ -1,4 +1,4 @@
-from language_alignment.language_model import Elmo, OneHot, Roberta, Bert, Unirep
+from language_alignment.language_model import Elmo, OneHot, Roberta, Bert, Unirep, Seqvec
 import os
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -13,5 +13,6 @@ pretrained_language_models = {
     'onehot': (OneHot, None),
     'roberta': (Roberta, None),
     'bert': (Bert, None),
-    'unirep': (Unirep, None)
+    'unirep': (Unirep, None),
+    'seqvec': (Seqvec, None)
 }

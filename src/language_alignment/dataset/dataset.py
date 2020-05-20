@@ -7,6 +7,7 @@ from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_
 from language_alignment.util import check_random_state
 
 
+
 def seq2onehot(seq):
     """ Create 21-dim 1-hot embedding """
     # chars = ['R', 'X', 'S', 'G', 'W', 'I', 'Q', 'A', 'T', 'V', 'K', 'Y',
@@ -28,12 +29,49 @@ def seq2onehot(seq):
     #seqs_x = [vocab_embed['<start>']] + seqs_x + [vocab_embed['<end>']]
     return torch.Tensor(np.array(seqs_x)).long()
 
+
+def collate_elmo(batch, max_len=1024, pad=0):
+    """ (length x batch_size x dimension)"""
+
+    # get sequence lengths
+    lengths = torch.tensor(
+        [(t[0].shape[0], t[1].shape[0], t[2].shape[0])
+             for t in batch])
+    ml = lengths.max()
+    S1_padded = torch.zeros((ml, len(batch), 50))
+    S2_padded = torch.zeros((ml, len(batch), 50))
+    S3_padded = torch.zeros((ml, len(batch), 50))
+    # Is this padding correct??
+    S1_padded[:, :, :] = pad
+    S2_padded[:, :, :] = pad
+    S3_padded[:, :, :] = pad
+
+    # padd (double check for dim issues)
+    for i in range(len(batch)):
+        S1_padded[:lengths[i][0], i, :] = batch[i][0].squeeze()
+        S2_padded[:lengths[i][1], i, :] = batch[i][1].squeeze()
+        S3_padded[:lengths[i][2], i, :] = batch[i][2].squeeze()
+
+    if S1_padded.shape[1] > max_len:
+        S1_padded = S1_padded[:, :max_len]
+    if S2_padded.shape[1] > max_len:
+        S2_padded = S2_padded[:, :max_len]
+    if S3_padded.shape[1] > max_len:
+        S3_padded = S3_padded[:, :max_len]
+
+    s1 = S1_padded.long()
+    s2 = S2_padded.long()
+    s3 = S3_padded.long()
+    return s1, s2, s3
+
+
 def collate_alignment_pairs(batch, max_len=1024, pad=0):
     """
     Padds matrices of variable length
 
     Previously, device was a parameter
     """
+
     # get sequence lengths
     lengths = torch.tensor(
         [(t[0].shape[0], t[1].shape[0], t[2].shape[0])
