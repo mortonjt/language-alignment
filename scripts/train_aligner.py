@@ -15,6 +15,7 @@ from torch.optim.lr_scheduler import StepLR
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.profiler import AdvancedProfiler
 
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
@@ -109,13 +110,15 @@ class LightningAligner(pl.LightningModule):
         x, y, z = batch
         self.model.train()
         loss = self.model.loss(x, y, z)
-        return {'loss': loss}
+        tensorboard_logs = {'train_loss': loss}
+        return {'loss': loss, 'log': tensorboard_logs}
 
     def validation_step(self, batch, batch_idx):
         x, y, z = batch
         self.model.eval()
         loss = self.model.loss(x, y, z)
-        return {'val_loss': loss}
+        tensorboard_logs = {'val_loss': loss}
+        return {'val_loss': loss, 'log': tensorboard_logs}
 
     def configure_optimizers(self):
         if not self.hparams.finetune:
@@ -174,23 +177,28 @@ class LightningAligner(pl.LightningModule):
 
 def main(args):
     model = LightningAligner(args)
+    profiler = AdvancedProfiler()
+
     trainer = Trainer(
         max_nb_epochs=args.epochs,
         gpus=args.gpus,
         nb_gpu_nodes=args.nodes,
         accumulate_grad_batches=args.grad_accum,
-        distributed_backend='dp',
+        distributed_backend=None,
         precision=args.precision,
         check_val_every_n_epoch=0.1,
-        # auto_scale_batch_size='power',
+        profiler=profiler,
+        fast_dev_run=True
+        #auto_scale_batch_size='power'
     )
 
     ckpt_path = os.path.join(
-        trainer.default_save_path,
+        args.output_directory,
         trainer.logger.name,
         f"version_{trainer.logger.version}",
         "checkpoints",
     )
+    print(f'{ckpt_path}:', ckpt_path)
     # initialize Model Checkpoint Saver
     checkpoint_callback = ModelCheckpoint(
         filepath=ckpt_path,
@@ -209,6 +217,8 @@ if __name__ == '__main__':
     parser.add_argument('--nodes', type=int, default=1)
     parser.add_argument('--num-workers', type=int, default=1)
     parser.add_argument('--precision', type=int, default=32)
+    parser.add_argument('--backend', type=int, default=None)
+    # options include ddp_cpu, dp, dpp
 
     parser = LightningAligner.add_model_specific_args(parser)
     hparams = parser.parse_args()

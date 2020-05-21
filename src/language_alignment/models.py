@@ -17,7 +17,7 @@ class AlignmentModel(torch.nn.Module):
         self.aligner_fun = aligner
         self.loss_fun = loss
 
-    def load_language_model(self, cls, path, device='cuda'):
+    def load_language_model(self, cls, path):
         """
         Parameters
         ----------
@@ -27,7 +27,7 @@ class AlignmentModel(torch.nn.Module):
         path : filepath
             Filepath of the pretrained model.
         """
-        self.lm = cls(path, device=device)
+        self.lm = cls(path)
 
     def forward(self, x, y):
         """
