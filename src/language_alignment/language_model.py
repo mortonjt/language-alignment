@@ -8,41 +8,61 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import tensorflow as tf
 from tape import ProteinBertModel, UniRepModel
+from allennlp.commands.elmo import ElmoEmbedder
 
 
 class LanguageModel(torch.nn.Module):
-    def __init__(self, path=None, device='cuda'):
+    def __init__(self, path=None):
         super(LanguageModel, self).__init__()
         self.path = path
-        self.device = device
 
     def __call__(self, x):
         pass
 
 
 class Unirep(LanguageModel):
-    def __init__(self, path=None, device='cuda'):
+    def __init__(self, path=None):
         super(Unirep, self).__init__()
         self.model = UniRepModel.from_pretrained('babbler-1900')
 
     def __call__(self, x):
         output = self.model(x)
-        return output[0]
+        print(output[0].shape)
+        print(output[1].shape)
+        return output[0].permute(0, 2, 1)
+
+
+class Seqvec(LanguageModel):
+    def __init__(self, path=None):
+        super(Seqvec, self).__init__()
+        weights_path = f'{path}/weights.hdf5'
+        options_path = f'{path}/options.json'
+        self.model = ElmoEmbedder(
+            weight_file=str(weights_path),
+            options_file=str(options_path)).elmo_bilm
+
+    def __call__(self, x):
+        output = self.model(x)['activations'][-1]
+        embed = output.view(
+            output.shape[0], output.shape[1] * output.shape[2]
+        )
+        embed = embed.unsqueeze(0).permute(0, 2, 1)
+        return embed
 
 
 class Bert(LanguageModel):
-    def __init__(self, path=None, device='cuda'):
+    def __init__(self, path=None):
         super(Bert, self).__init__()
         self.model = ProteinBertModel.from_pretrained('bert-base')
 
     def __call__(self, x):
         output = self.model(x)
-        return output[0]
+        return output[0].permute(0, 2, 1)
 
 
 class Roberta(LanguageModel):
-    def __init__(self, path, trainable=False, device='cuda'):
-        super(Roberta, self).__init__(path, device)
+    def __init__(self, path, trainable=False):
+        super(Roberta, self).__init__(path)
         from fairseq.models.roberta import RobertaModel
         ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__))))
@@ -51,14 +71,13 @@ class Roberta(LanguageModel):
             path, 'checkpoint_best.pt',
             gpt2_encoder_json=f'{ROOT}/peptide_bpe/encoder.json',
             gpt2_vocab_bpe=f'{ROOT}/peptide_bpe/vocab.bpe')
-        self.device = device
 
     def __call__(self, x):
         """ Extracts representation from one hot encodings. """
         #toks = self.model.encode(' '.join(list(x)))
         res = self.model.extract_features(x)
         # cut out the ends
-        res = res[:, 1:-1].to(self.device)
+        res = res[:, 1:-1]
         return res.permute(0, 2, 1)
 
 
@@ -80,12 +99,12 @@ class Elmo(LanguageModel):
     def __call__(self, x):
         prot = ProteinSequence(x)
         embed = self.model.predict(prot.onehot).squeeze()
-        return torch.Tensor(embed).to(self.device)
+        return torch.Tensor(embed)
 
 
 class OneHot(LanguageModel):
-    def __init__(self, path, device='cuda'):
-        super(OneHot, self).__init__(path, device)
+    def __init__(self, path):
+        super(OneHot, self).__init__(path)
         self.tla_codes = ["A", "R", "N", "D", "B", "C", "E", "Q", "Z", "G",
                           "H", "I", "L", "K", "M", "F", "P", "S", "T", "W",
                           "Y", "V"]
@@ -98,4 +117,4 @@ class OneHot(LanguageModel):
         x, y = emb.shape
         emb = emb.view(1, x, y)
         # make the embedding dimension the last dimension
-        return emb.to(self.device)
+        return emb

@@ -57,11 +57,11 @@ class SSAaligner(nn.Module):
 
 
 class CCAaligner(nn.Module):
-    def __init__(self, input_dim=512, embed_dim=64, device='cpu'):
+    def __init__(self, input_dim=512, embed_dim=64):
         super(CCAaligner, self).__init__()
         self.projection = nn.Linear(input_dim, embed_dim)
         #self.batch_norm = nn.BatchNorm1d(embed_dim, embed_dim)
-        self.loss = CCAloss(embed_dim, device=device)
+        self.loss = CCAloss(embed_dim)
         torch.nn.init.xavier_uniform(self.projection.weight)
         self.projection.bias.data.fill_(0.1)
 
@@ -73,7 +73,8 @@ class CCAaligner(nn.Module):
         corresponds to the sequence length and the
         second dimensions corresponds to the embedding dimension.
 
-        The input *must* be padded. Only accepts 1 pair at a time.
+        The input *must* be padded.
+        Loss function only accepts 1 pair at a time.
         """
 
         # transpose for projection
@@ -83,5 +84,11 @@ class CCAaligner(nn.Module):
         y = self.projection(z_y)
         x = x.permute(0, 2, 1).contiguous().double()
         y = y.permute(0, 2, 1).contiguous().double()
-
-        return self.loss(x, y)
+        batch_size = x.size()[0]
+        l = 0
+        for b in range(batch_size):
+            x_, y_ = x[b, :, :], y[b, :, :]
+            x_ = torch.unsqueeze(x_, 0)
+            y_ = torch.unsqueeze(y_, 0)
+            l += self.loss(x_, y_) / batch_size
+        return l

@@ -4,9 +4,11 @@ from language_alignment.dataset.dataset import seq2onehot
 from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import CCAaligner
+from language_alignment.losses import TripletLoss
 from tape import TAPETokenizer
 import numpy as np
 import numpy.testing as npt
+from allennlp.modules.elmo import batch_to_ids
 
 
 class TestLanguageModel(unittest.TestCase):
@@ -30,6 +32,24 @@ class TestLanguageModel(unittest.TestCase):
                   'LNKVIVPELNYSDIILDADHVNKIEIIPAKTIEDVLRVALVNSPEKEKLFDRISNLINAAKIIK'
                   'PQRPATPATTRAGNNAA')
 
+class TestSeqvec(TestLanguageModel):
+    def test_extract(self):
+        arch = 'seqvec'
+        cls, path = pretrained_language_models[arch]
+        path = '/mnt/home/jmorton/research/gert/icml2020/language-alignment/model'
+        device = 'cuda'
+        max_len = 1024
+        input_dim = 1024
+        embed_dim = 10
+        self.align_fun = CCAaligner(input_dim, embed_dim,
+                                    device=device)
+        self.model = AlignmentModel(aligner=CCAaligner, loss=TripletLoss())
+        self.model.load_language_model(cls, path, device=device)
+        self.model.to(device)
+        res_x = batch_to_ids(self.x).to(device)
+        res = self.model.lm(res_x)
+        self.assertEqual(torch.isnan(res).sum().item(), 0)
+
 
 class TestUnirep(TestLanguageModel):
 
@@ -40,8 +60,9 @@ class TestUnirep(TestLanguageModel):
         max_len = 1024
         input_dim = 1024
         embed_dim = 10
-        self.align_fun = CCAaligner(input_dim, embed_dim, device=device)
-        self.model = AlignmentModel(aligner=CCAaligner)
+        self.align_fun = CCAaligner(input_dim, embed_dim,
+                                    device=device)
+        self.model = AlignmentModel(aligner=CCAaligner, loss=TripletLoss())
         self.model.load_language_model(cls, path, device=device)
         self.model.to(device)
 
@@ -56,7 +77,7 @@ class TestUnirep(TestLanguageModel):
         res_x = torch.tensor([tokenizer.encode(self.x)]).to(device)
         res = self.model.lm(res_x)
         self.assertEqual(torch.isnan(res).sum().item(), 0)
-
+        print(res.shape)
 
 class TestBert(TestLanguageModel):
 
@@ -67,8 +88,9 @@ class TestBert(TestLanguageModel):
         max_len = 1024
         input_dim = 1024
         embed_dim = 10
-        self.align_fun = CCAaligner(input_dim, embed_dim, device=device)
-        self.model = AlignmentModel(aligner=CCAaligner)
+        self.align_fun = CCAaligner(input_dim, embed_dim,
+                                    device=device)
+        self.model = AlignmentModel(aligner=CCAaligner, loss=TripletLoss())
         self.model.load_language_model(cls, path, device=device)
         self.model.to(device)
 
@@ -95,8 +117,9 @@ class TestRoberta(TestLanguageModel):
         max_len = 1024
         input_dim = 1024
         embed_dim = 10
-        self.align_fun = CCAaligner(input_dim, embed_dim, device=device)
-        self.model = AlignmentModel(aligner=CCAaligner)
+        self.align_fun = CCAaligner(input_dim, embed_dim,
+                                    device=device)
+        self.model = AlignmentModel(aligner=CCAaligner, loss=TripletLoss())
         self.model.load_language_model(cls, path, device=device)
         self.model.to(device)
 
@@ -105,11 +128,11 @@ class TestRoberta(TestLanguageModel):
         exp_z = self.model.lm.model.encode(' '.join(list(self.z)))
 
         # Assert that onehot encodings are equal
-        res_x = seq2onehot(x)
+        res_x = seq2onehot(self.x)
         npt.assert_allclose(res_x.numpy(), exp_x.numpy())
-        res_y = seq2onehot(y)
+        res_y = seq2onehot(self.y)
         npt.assert_allclose(res_y.numpy(), exp_y.numpy())
-        res_z = seq2onehot(z)
+        res_z = seq2onehot(self.z)
         npt.assert_allclose(res_z.numpy(), exp_z.numpy())
 
         # Assert that extract features are not nan
