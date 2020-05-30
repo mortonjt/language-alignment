@@ -44,17 +44,47 @@ conda activate alignment
 # blast_alignments=$DATADIR/results/blast/pfam_alignments.txt
 # python scripts/parse_blast_alignment.py $blast_results $pairs $blast_alignments
 
-DATADIR=/mnt/home/jmorton/research/gert/icml2020/language-alignment
-inpath=/mnt/home/jmorton/research/gert/icml2020/language-alignment/data/scop
-inpath=$DATADIR/data/alignment-train/testing-set/test_pfam.fa
-mkdir -p $outdir
-makeblastdb -in $inpath -dbtype 'prot' -out $outdir
-blastp -db $outdir \
-    -query $inpath -out $outdir/pfam_benchmark.xml -outfmt 5
 
-inpath=$DATADIR/data/alignment-train/testing-set/test_scop.fa
+### PFAM / SCOP benchmarks
+DATADIR=/mnt/home/jmorton/research/gert/icml2020/language-alignment
+# inpath=/mnt/home/jmorton/research/gert/icml2020/language-alignment/data/scop
+# inpath=$DATADIR/data/alignment-train/testing-set/test_pfam.fa
+#
+# mkdir -p $outdir
+# makeblastdb -in $inpath -dbtype 'prot' -out $outdir
+# blastp -db $outdir \
+#     -query $inpath -out $outdir/pfam_benchmark.xml -outfmt 5
+#
+# inpath=$DATADIR/data/alignment-train/testing-set/test_scop.fa
+# outdir=$DATADIR/results/distances/blast/scop
+# mkdir -p $outdir
+# makeblastdb -in $inpath -dbtype 'prot' -out $outdir
+# blastp -db $outdir \
+#     -query $inpath -out $outdir/scop_benchmark.xml -outfmt 5
+
+# # parse results
+echo 'pfam'
+outdir=$DATADIR/results/distances/blast/pfam
+blast_results=$DATADIR/results/distances/blast/pfam/pfam_benchmark.xml
+blast_alignments=$DATADIR/results/distances/blast/pfam/pfam_alignments.txt
+python scripts/parse_alignment.py \
+    --path $blast_results \
+    --aligner blast \
+    --out-path $blast_alignments
+python scripts/evaluate_blast.py \
+    -p $DATADIR/data/alignment-train/testing-set/test_pfam.txt\
+    -a $blast_alignments \
+    -o $outdir/pfam_results.txt
+
+echo 'scop'
 outdir=$DATADIR/results/distances/blast/scop
-mkdir -p $outdir
-makeblastdb -in $inpath -dbtype 'prot' -out $outdir
-blastp -db $outdir \
-    -query $inpath -out $outdir/scop_benchmark.xml -outfmt 5
+blast_results=$DATADIR/results/distances/blast/scop/scop_benchmark.xml
+blast_alignments=$DATADIR/results/distances/blast/scop/scop_alignments.txt
+python scripts/parse_alignment.py \
+    --path $blast_results \
+    --aligner blast \
+    --out-path $blast_alignments
+python scripts/evaluate_blast.py \
+    -p $DATADIR/data/alignment-train/testing-set/test_scop.txt\
+    -a $blast_alignments \
+    -o $outdir/scop_results.txt

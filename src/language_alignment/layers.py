@@ -57,11 +57,11 @@ class SSAaligner(nn.Module):
 
 
 class CCAaligner(nn.Module):
-    def __init__(self, input_dim=512, embed_dim=64, device='cpu'):
+    def __init__(self, input_dim=512, embed_dim=64):
         super(CCAaligner, self).__init__()
         self.projection = nn.Linear(input_dim, embed_dim)
         #self.batch_norm = nn.BatchNorm1d(embed_dim, embed_dim)
-        self.loss = CCAloss(embed_dim, device=device)
+        self.loss = CCAloss(embed_dim)
         torch.nn.init.xavier_uniform(self.projection.weight)
         self.projection.bias.data.fill_(0.1)
 

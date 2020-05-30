@@ -8,11 +8,10 @@ class CCAloss(object):
     This is from the DeepCCA repository
     Author: Michaelvll
     """
-    def __init__(self, outdim_size, use_all_singular_values=True, device='cpu'):
+    def __init__(self, outdim_size, use_all_singular_values=True):
         super(CCAloss, self).__init__()
         self.outdim_size = outdim_size
         self.use_all_singular_values = use_all_singular_values
-        self.device = device
 
     def __call__(self, H1, H2):
         """
@@ -34,13 +33,13 @@ class CCAloss(object):
         m = H1.size(1)
         #         print(H1.size())
 
-        assert torch.isnan(H1).sum().item() == 0
-        assert torch.isnan(H2).sum().item() == 0
+        # assert torch.isnan(H1).sum().item() == 0
+        # assert torch.isnan(H2).sum().item() == 0
 
         H1bar = H1 - H1.mean(dim=1).unsqueeze(dim=1)
         H2bar = H2 - H2.mean(dim=1).unsqueeze(dim=1)
-        assert torch.isnan(H1bar).sum().item() == 0
-        assert torch.isnan(H2bar).sum().item() == 0
+        # assert torch.isnan(H1bar).sum().item() == 0
+        # assert torch.isnan(H2bar).sum().item() == 0
         eye1 = torch.eye(o1).to(H1bar.device)
         eye2 = torch.eye(o2).to(H2bar.device)
         SigmaHat12 = (1.0 / (m - 1)) * torch.matmul(H1bar, H2bar.t())
@@ -48,17 +47,17 @@ class CCAloss(object):
             H1bar, H1bar.t()) + r1 * eye1
         SigmaHat22 = (1.0 / (m - 1)) * torch.matmul(
             H2bar, H2bar.t()) + r2 * eye2
-        assert torch.isnan(SigmaHat11).sum().item() == 0
-        assert torch.isnan(SigmaHat12).sum().item() == 0
-        assert torch.isnan(SigmaHat22).sum().item() == 0
+        # assert torch.isnan(SigmaHat11).sum().item() == 0
+        # assert torch.isnan(SigmaHat12).sum().item() == 0
+        # assert torch.isnan(SigmaHat22).sum().item() == 0
 
         # Calculating the root inverse of covariance matrices by using eigen decomposition
         [D1, V1] = torch.symeig(SigmaHat11, eigenvectors=True)
         [D2, V2] = torch.symeig(SigmaHat22, eigenvectors=True)
-        assert torch.isnan(D1).sum().item() == 0
-        assert torch.isnan(D2).sum().item() == 0
-        assert torch.isnan(V1).sum().item() == 0
-        assert torch.isnan(V2).sum().item() == 0
+        # assert torch.isnan(D1).sum().item() == 0
+        # assert torch.isnan(D2).sum().item() == 0
+        # assert torch.isnan(V1).sum().item() == 0
+        # assert torch.isnan(V2).sum().item() == 0
 
         # Added to increase stability
         posInd1 = torch.gt(D1, eps).nonzero()[:, 0]
@@ -79,21 +78,12 @@ class CCAloss(object):
                                          SigmaHat12), SigmaHat22RootInv)
         #         print(Tval.size())
 
-        if self.use_all_singular_values:
-            # all singular values are used to calculate the correlation
-            tmp = torch.trace(torch.matmul(Tval.t(), Tval))
-            # print(tmp)
-            corr = torch.sqrt(tmp)
-            # assert torch.isnan(corr).item() == 0
-        else:
-            # just the top self.outdim_size singular values are used
-            trace_TT = torch.matmul(Tval.t(), Tval)
-            # regularization for more stability
-            trace_TT = torch.add(trace_TT, (torch.eye(trace_TT.shape[0]) * r1))
-            U, V = torch.symeig(trace_TT, eigenvectors=True)
-            U = torch.where(U > eps, U, (torch.ones(U.shape).float() * eps))
-            U = U.topk(self.outdim_size)[0]
-            corr = torch.sum(torch.sqrt(U))
+        # all singular values are used to calculate the correlation
+        tmp = torch.trace(torch.matmul(Tval.t(), Tval))
+        # print(tmp)
+        corr = torch.sqrt(tmp)
+        # assert torch.isnan(corr).item() == 0
+
         return -corr
 
 

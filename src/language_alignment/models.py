@@ -43,8 +43,8 @@ class AlignmentModel(torch.nn.Module):
         return self.aligner_fun(z_x, z_y)
 
     def predict(self, z_x, z_y):
-        neg_corr = self.forward(z_x, z_y)
-        return torch.pow(neg_corr, 2)
+        dist = self.forward(z_x, z_y)
+        return dist
 
     def loss(self, x, y, z):
         h_x = self.lm(x)
