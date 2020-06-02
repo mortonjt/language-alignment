@@ -37,7 +37,7 @@ class SSAaligner(nn.Module):
         torch.nn.init.xavier_uniform(self.projection.weight)
         self.projection.bias.data.fill_(0.1)
 
-    def align(self, z_x, z_y):
+    def align(self, z_x, z_y, condense=False):
         """ Computes alignment matrix. """
         z_x = z_x.permute(0, 2, 1).contiguous()
         z_y = z_y.permute(0, 2, 1).contiguous()
@@ -45,11 +45,13 @@ class SSAaligner(nn.Module):
         y = self.projection(z_y)
         x = x.permute(0, 2, 1).contiguous()
         y = y.permute(0, 2, 1).contiguous()
+        if condense:
+            x = x.squeeze().t()
+            y = y.squeeze().t()
         s = self.compare(x, y)
 
         a = F.softmax(s, 1)
         b = F.softmax(s, 0)
-
         a = a + b - a * b
         dm = a * s
         c = torch.sum(dm) / torch.sum(a)
@@ -78,7 +80,7 @@ class CCAaligner(nn.Module):
         y = y.permute(0, 2, 1).contiguous().double()
         return x, y
 
-    def align(self, z_x, z_y):
+    def align(self, z_x, z_y, condense=None):
         """ Computes alignment matrix. """
         x, y = self.merge_(z_x, z_y)
         neg_corr, dm = self.loss(x, y)

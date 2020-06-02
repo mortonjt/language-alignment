@@ -19,7 +19,7 @@ cd /mnt/home/jmorton/research/gert/icml2020/language-alignment
 homedir=/mnt/home/jmorton/research/gert/icml2020/language-alignment
 datadir=$homedir/data/alignment-train
 lm=roberta
-method=cca
+method=ssa
 dataset=pfam
 # for dataset in pfam scop
 # do
@@ -27,9 +27,10 @@ dataset=pfam
 model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
 # model=/mnt/home/jmorton/research/gert/icml2020/language-alignment
 dataset=malisam
-aliname=d1a05a_d1dgsa3
+aliname=d1adja2d1drw_2
 $homedir/results/aligner/${method}_${lm}_finetune_mode_reg1e-3_500k_round3
-ali=~/ceph/seq-databases/structures/$dataset/$aliname/d1a05a_d1dgsa3.manual.ali
+ali=~/ceph/seq-databases/structures/$dataset/$aliname/$aliname.manual.ali
+echo $ali
 results_dir=$homedir/results/struct_alignments/$dataset/$aliname/${method}_${lm}_finetune_mode_reg1e-3_500k_round3
 mkdir -p $results_dir
 echo $method

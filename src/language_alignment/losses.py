@@ -26,9 +26,11 @@ class CCAloss(object):
 
         assert torch.isnan(H1).sum().item() == 0
         assert torch.isnan(H2).sum().item() == 0
+
         H1, H2 = torch.squeeze(H1).t(), torch.squeeze(H2).t()
 
-        o1 = o2 = H1.size(0)
+        o1 = H1.size(0)
+        o2 = H2.size(0)
 
         m = H1.size(1)
         #         print(H1.size())
@@ -42,6 +44,7 @@ class CCAloss(object):
         # assert torch.isnan(H2bar).sum().item() == 0
         eye1 = torch.eye(o1).to(H1bar.device)
         eye2 = torch.eye(o2).to(H2bar.device)
+
         SigmaHat12 = (1.0 / (m - 1)) * torch.matmul(H1bar, H2bar.t())
         SigmaHat11 = (1.0 / (m - 1)) * torch.matmul(
             H1bar, H1bar.t()) + r1 * eye1
@@ -76,7 +79,6 @@ class CCAloss(object):
 
         Tval = torch.matmul(torch.matmul(SigmaHat11RootInv,
                                          SigmaHat12), SigmaHat22RootInv)
-
         # all singular values are used to calculate the correlation
         tmp = torch.trace(torch.matmul(Tval.t(), Tval))
         # print(tmp)

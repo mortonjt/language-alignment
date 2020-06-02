@@ -12,7 +12,8 @@ import torch
 from Bio import SeqIO
 from tqdm import tqdm
 from language_alignment.model_utils import init_model, init_dataloaders
-from language_alignment.alignment import matrix_to_edges, aln2edges
+from language_alignment.alignment import (
+    matrix_to_edges, aln2edges, filter_by_locality)
 from language_alignment.score import score_alignment
 from language_alignment.dataset import seq2onehot
 
@@ -28,17 +29,28 @@ def main(args):
     x, y = x.rsplit()[0], y.rsplit()[0]
 
     # Obtain ground truth edges
-    sx = x.replace('-', '')
-    sy = y.replace('-', '')
     truth_edges = aln2edges(x, y)
+    x = x.replace('-', '')
+    y = y.replace('-', '')
+
     # Estimate edges
-    sx = seq2onehot(sx.upper()).to(device)
-    sy = seq2onehot(sy.upper()).to(device)
-    dm, _ = model.align(sx, sy)
-    pred_edges = matrix_to_edges(dm.cpu().detach().numpy())
-    pred_edges = pred_edges.values.tolist()
+    sx = model.lm.model.encode(' '.join(list(x.upper()))).to(device)
+    sy = model.lm.model.encode(' '.join(list(y.upper()))).to(device)
+    dm, corr = model.align(sx, sy, condense=True)
+    dm = dm.cpu().detach().numpy()
+    pred_edges = matrix_to_edges(-dm)
+
+    #pred_edges = filter_by_locality(pred_edges)
+    pred_edges = pred_edges.astype(np.int64)
+    pred_edges = pred_edges[['source', 'target']].values.tolist()
+    pred_edges = list(map(tuple, pred_edges))
+
     res = score_alignment(pred_edges, truth_edges, len(x))
     tp, fp, tn, fn = res
+
+    aln_file = f'{args.output_dir}/alignment_matrix.csv'
+    dm = pd.DataFrame(dm, index=list(x), columns=list(y))
+    dm.to_csv(aln_file)
 
     pred_edge_file = f'{args.output_dir}/edges.csv'
     pd.DataFrame(
@@ -46,6 +58,7 @@ def main(args):
     ).to_csv(pred_edge_file, index=None, header=None)
     pred_stats_file = f'{args.output_dir}/stats.csv'
     stats = pd.Series({'TP': tp, 'FP': fp, 'TN': tn, 'FN': fn})
+    print(stats)
     stats.to_csv(pred_stats_file)
 
 

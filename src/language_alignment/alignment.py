@@ -121,4 +121,5 @@ def aln2edges(qseq: str, hseq: str):
     q_coords = np.cumsum(np.array(list(qseq)) != '-')
     h_coords = np.cumsum(np.array(list(hseq)) != '-')
     edges = list(zip(list(q_coords), list(h_coords)))
+
     return edges
