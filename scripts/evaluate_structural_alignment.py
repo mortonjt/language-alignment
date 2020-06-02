@@ -8,11 +8,13 @@ import datetime
 import glob
 import os
 import re
+import torch
 from Bio import SeqIO
 from tqdm import tqdm
-from language_model.model_utils import init_model
-from language_model.alignment import aln2edges
-from language_model.score import score_alignment
+from language_alignment.model_utils import init_model, init_dataloaders
+from language_alignment.alignment import matrix_to_edges, aln2edges
+from language_alignment.score import score_alignment
+from language_alignment.dataset import seq2onehot
 
 
 def main(args):
@@ -21,31 +23,36 @@ def main(args):
     # Initialize model
     model, device = init_model(args)
 
-    # Read in manual alignment
-    text = open(args.manual_alignment)
+    text = open(args.manual_alignment).read()
     x, y = text.split('\n')[:2]
-    aln2edges(qseq: str, hseq: str):
+    x, y = x.rsplit()[0], y.rsplit()[0]
 
-    # Read in all data
-    test_dataloader, test_pairs = init_dataloaders(args, device)
-    # Estimate distances
-    vals = []
-    for batch in tqdm(test_dataloader):
-        x, y, z = batch[0], batch[1], batch[2]
-        xy = model.predict(x, y).item()
-        xz = model.predict(x, z).item()
-        vals.append((xy, xz))
-    res = pd.DataFrame(vals)
-    res = pd.concat((test_pairs, res), axis=1)
+    # Obtain ground truth edges
+    sx = x.replace('-', '')
+    sy = y.replace('-', '')
+    truth_edges = aln2edges(x, y)
+    # Estimate edges
+    sx = seq2onehot(sx.upper()).to(device)
+    sy = seq2onehot(sy.upper()).to(device)
+    dm, _ = model.align(sx, sy)
+    pred_edges = matrix_to_edges(dm.cpu().detach().numpy())
+    pred_edges = pred_edges.values.tolist()
+    res = score_alignment(pred_edges, truth_edges, len(x))
+    tp, fp, tn, fn = res
 
-    # Write results to file
-    res.to_csv(args.output_file, sep='\t', index=None, header=None)
+    pred_edge_file = f'{args.output_dir}/edges.csv'
+    pd.DataFrame(
+        pred_edges
+    ).to_csv(pred_edge_file, index=None, header=None)
+    pred_stats_file = f'{args.output_dir}/stats.csv'
+    stats = pd.Series({'TP': tp, 'FP': fp, 'TN': tn, 'FN': fn})
+    stats.to_csv(pred_stats_file)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Evalutes alignment distance.')
-    parser.add_argument('--test-pairs', help='Validation pairs file', required=True)
-    parser.add_argument('--fasta', help='Fasta file', required=True)
+    parser = argparse.ArgumentParser(description='Evaluates structural alignment.')
+    parser.add_argument('--manual-alignment', help='File path to manual alignment',
+                        required=True)
     parser.add_argument('-m','--lm', help='Path to trained alignment model.',
                         required=False, default=None)
     parser.add_argument('-c','--arch',
@@ -64,7 +71,7 @@ if __name__ == '__main__':
                         required=False, type=str)
     parser.add_argument('-g','--gpu', help='Use GPU or not', default=False,
                         required=False, type=bool)
-    parser.add_argument('-o','--output-file', help='Output file of model results',
+    parser.add_argument('-o','--output-dir', help='Output directory for model results',
                         required=True)
     args = parser.parse_args()
     main(args)

@@ -42,6 +42,18 @@ class AlignmentModel(torch.nn.Module):
         z_y = self.lm(y)
         return self.aligner_fun(z_x, z_y)
 
+    def align(self, x, y, max_len=1024):
+        p = len(x)
+        q = len(y)
+        sx = torch.zeros(max_len).long()
+        sy = torch.zeros(max_len).long()
+        sx[:p] = x
+        sy[:q] = y
+        z_x = self.lm(sx)
+        z_y = self.lm(sy)
+        dm, score = self.aligner_fun.align(z_x, z_y)
+        return dm, score
+
     def predict(self, z_x, z_y):
         dist = self.forward(z_x, z_y)
         return dist

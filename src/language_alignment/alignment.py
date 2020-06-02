@@ -16,6 +16,12 @@ def cca_solve(X, Y, n_components=10):
     phi, psi = cca.x_loadings_, cca.y_loadings_
     return U, V, phi, psi, r2
 
+def matrix_to_edges(dm):
+    """ Converts alignment matrix to bipartite matching. """
+    row_ind, col_ind = linear_sum_assignment(dm)
+    cover_edges = pd.DataFrame({'source': row_ind, 'target': col_ind,
+                                'weight': dm[row_ind, col_ind]})
+    return cover_edges
 
 def cca_align(phi, psi):
     """ Computes alignment based on canonical loadings
@@ -37,10 +43,9 @@ def cca_align(phi, psi):
         Full bipartite matching
     """
     cov_xy = psi @ np.linalg.pinv(phi)
-    row_ind, col_ind = linear_sum_assignment(-cov_xy)
-    cover_edges = pd.DataFrame({'source': row_ind, 'target': col_ind,
-                                'weight': cov_xy[row_ind, col_ind]})
-    return cover_edges
+    return matrix_to_edges(-cov_xy)
+
+
 
 def filter_by_locality(cover, min_size=2):
     """ Filters residues based on locality
@@ -116,5 +121,4 @@ def aln2edges(qseq: str, hseq: str):
     q_coords = np.cumsum(np.array(list(qseq)) != '-')
     h_coords = np.cumsum(np.array(list(hseq)) != '-')
     edges = list(zip(list(q_coords), list(h_coords)))
-    edges = list(map(lambda x: (x[3], x[4]), matches))
     return edges

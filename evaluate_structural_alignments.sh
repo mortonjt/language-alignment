@@ -23,16 +23,18 @@ method=cca
 dataset=pfam
 # for dataset in pfam scop
 # do
-#test_file=$datadir/testing-set/test_${dataset}.txt
-test_file=$homedir/data/$dataset/data-bin/test.txt
-fasta_file=$datadir/seqs.fasta
-results_dir=$homedir/results/aligner/${method}_${lm}_finetune_mode_reg1e-3_500k_round3
+
 model=/mnt/home/jmorton/ceph/checkpoints/pfam/checkpoint_gert
 # model=/mnt/home/jmorton/research/gert/icml2020/language-alignment
+dataset=malisam
+aliname=d1a05a_d1dgsa3
+$homedir/results/aligner/${method}_${lm}_finetune_mode_reg1e-3_500k_round3
+ali=~/ceph/seq-databases/structures/$dataset/$aliname/d1a05a_d1dgsa3.manual.ali
+results_dir=$homedir/results/struct_alignments/$dataset/$aliname/${method}_${lm}_finetune_mode_reg1e-3_500k_round3
+mkdir -p $results_dir
 echo $method
-python scripts/evaluate_aligner.py \
-    --test-pairs $test_file \
-    --fasta $fasta_file \
+python scripts/evaluate_structural_alignment.py \
+    --manual-alignment $ali \
     -m $model \
     --arch 'roberta' \
     --aligner $method \
@@ -40,5 +42,5 @@ python scripts/evaluate_aligner.py \
     --gpu True \
     --lm-embed-dim 1024 \
     --aligner-embed-dim 1024 \
-    -o $results_dir/${dataset}_results.txt
+    --output-dir $results_dir
 # done

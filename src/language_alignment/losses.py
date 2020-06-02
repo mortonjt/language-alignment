@@ -76,7 +76,6 @@ class CCAloss(object):
 
         Tval = torch.matmul(torch.matmul(SigmaHat11RootInv,
                                          SigmaHat12), SigmaHat22RootInv)
-        #         print(Tval.size())
 
         # all singular values are used to calculate the correlation
         tmp = torch.trace(torch.matmul(Tval.t(), Tval))
@@ -84,7 +83,7 @@ class CCAloss(object):
         corr = torch.sqrt(tmp)
         # assert torch.isnan(corr).item() == 0
 
-        return -corr
+        return -corr, Tval
 
 
 class TripletLoss(nn.Module):

@@ -9,7 +9,6 @@ This file contains 3 different alignment layers
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.clip_grad import clip_grad_norm_
 from language_alignment.losses import CCAloss
 
 
@@ -38,21 +37,26 @@ class SSAaligner(nn.Module):
         torch.nn.init.xavier_uniform(self.projection.weight)
         self.projection.bias.data.fill_(0.1)
 
-    def __call__(self, z_x, z_y):
+    def align(self, z_x, z_y):
+        """ Computes alignment matrix. """
         z_x = z_x.permute(0, 2, 1).contiguous()
         z_y = z_y.permute(0, 2, 1).contiguous()
         x = self.projection(z_x)
         y = self.projection(z_y)
         x = x.permute(0, 2, 1).contiguous()
         y = y.permute(0, 2, 1).contiguous()
-
         s = self.compare(x, y)
 
         a = F.softmax(s, 1)
         b = F.softmax(s, 0)
 
         a = a + b - a * b
-        c = torch.sum(a * s) / torch.sum(a)
+        dm = a * s
+        c = torch.sum(dm) / torch.sum(a)
+        return dm, s
+
+    def __call__(self, z_x, z_y):
+        _, c = self.align(z_x, z_y)
         return c
 
 
@@ -64,6 +68,22 @@ class CCAaligner(nn.Module):
         self.loss = CCAloss(embed_dim)
         torch.nn.init.xavier_uniform(self.projection.weight)
         self.projection.bias.data.fill_(0.1)
+
+    def merge_(self, z_x, z_y):
+        z_x = z_x.permute(0, 2, 1).contiguous()
+        z_y = z_y.permute(0, 2, 1).contiguous()
+        x = self.projection(z_x)
+        y = self.projection(z_y)
+        x = x.permute(0, 2, 1).contiguous().double()
+        y = y.permute(0, 2, 1).contiguous().double()
+        return x, y
+
+    def align(self, z_x, z_y):
+        """ Computes alignment matrix. """
+        x, y = self.merge_(z_x, z_y)
+        neg_corr, dm = self.loss(x, y)
+        corr = -1 * neg_corr
+        return dm, corr
 
     def __call__(self, z_x, z_y):
         """
@@ -78,17 +98,12 @@ class CCAaligner(nn.Module):
         """
 
         # transpose for projection
-        z_x = z_x.permute(0, 2, 1).contiguous()
-        z_y = z_y.permute(0, 2, 1).contiguous()
-        x = self.projection(z_x)
-        y = self.projection(z_y)
-        x = x.permute(0, 2, 1).contiguous().double()
-        y = y.permute(0, 2, 1).contiguous().double()
+        x, y = self.merge(z_x, z_y)
         batch_size = x.size()[0]
-        l = 0
+        lo = 0
         for b in range(batch_size):
             x_, y_ = x[b, :, :], y[b, :, :]
             x_ = torch.unsqueeze(x_, 0)
             y_ = torch.unsqueeze(y_, 0)
-            l += self.loss(x_, y_) / batch_size
-        return l
+            lo += self.loss(x_, y_)[0] / batch_size
+        return lo

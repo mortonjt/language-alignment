@@ -1,9 +1,27 @@
 import unittest
 import numpy as np
-from score import domain_score
+from language_alignment.score import domain_score, score_alignment
 import pandas as pd
 import pandas.util.testing as pdt
 
+
+class TestScoreAlignment(unittest.TestCase):
+    def test_score_alignment(self):
+        pred_edges = pd.DataFrame(
+            [(1, 2),
+             (2, 3),
+             (3, 4),
+             (4, 5)],
+            columns=['source', 'target']
+        )
+        truth_edges = pd.DataFrame(
+            [(2, 3),
+             (3, 4),
+             (4, 5),
+             (5, 6)],
+            columns=['source', 'target']
+        )
+        score_alignment(pred_edges, truth_edges, total_length=4)
 
 class TestDomain(unittest.TestCase):
 

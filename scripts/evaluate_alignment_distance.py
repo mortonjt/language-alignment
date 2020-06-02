@@ -10,9 +10,8 @@ import os
 import re
 from Bio import SeqIO
 from tqdm import tqdm
-from language_model.model_utils import init_model
-from language_model.alignment import aln2edges
-from language_model.score import score_alignment
+
+from language_model.model_utils import init_model, init_dataloaders
 
 
 def main(args):
@@ -20,12 +19,6 @@ def main(args):
     # torch.manual_seed(0)
     # Initialize model
     model, device = init_model(args)
-
-    # Read in manual alignment
-    text = open(args.manual_alignment)
-    x, y = text.split('\n')[:2]
-    aln2edges(qseq: str, hseq: str):
-
     # Read in all data
     test_dataloader, test_pairs = init_dataloaders(args, device)
     # Estimate distances
@@ -41,9 +34,8 @@ def main(args):
     # Write results to file
     res.to_csv(args.output_file, sep='\t', index=None, header=None)
 
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Evalutes alignment distance.')
+    parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('--test-pairs', help='Validation pairs file', required=True)
     parser.add_argument('--fasta', help='Fasta file', required=True)
     parser.add_argument('-m','--lm', help='Path to trained alignment model.',
