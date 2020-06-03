@@ -144,6 +144,5 @@ class TestRoberta(TestLanguageModel):
         self.assertEqual(torch.isnan(res).sum().item(), 0)
 
 
-
 if __name__ == '__main__':
     unittest.main()
