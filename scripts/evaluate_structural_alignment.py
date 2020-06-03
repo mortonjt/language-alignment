@@ -38,7 +38,7 @@ def main(args):
     sy = model.lm.model.encode(' '.join(list(y.upper()))).to(device)
     dm, corr = model.align(sx, sy, condense=True)
     dm = dm.cpu().detach().numpy()
-    pred_edges = matrix_to_edges(-dm)
+    pred_edges = matrix_to_edges(dm)
 
     #pred_edges = filter_by_locality(pred_edges)
     pred_edges = pred_edges.astype(np.int64)
@@ -51,6 +51,11 @@ def main(args):
     aln_file = f'{args.output_dir}/alignment_matrix.csv'
     dm = pd.DataFrame(dm, index=list(x), columns=list(y))
     dm.to_csv(aln_file)
+
+    truth_edge_file = f'{args.output_dir}/truth_edges.csv'
+    pd.DataFrame(
+        truth_edges
+    ).to_csv(truth_edge_file, index=None, header=None)
 
     pred_edge_file = f'{args.output_dir}/edges.csv'
     pd.DataFrame(
