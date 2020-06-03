@@ -27,8 +27,6 @@ class Unirep(LanguageModel):
 
     def __call__(self, x):
         output = self.model(x)
-        print(output[0].shape)
-        print(output[1].shape)
         return output[0].permute(0, 2, 1)
 
 

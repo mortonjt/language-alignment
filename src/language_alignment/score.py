@@ -109,6 +109,35 @@ def domain_score(edges, seq1, dom1, seq2, dom2):
     res = pd.DataFrame({'tp': tps, 'fp': fps, 'len': l}, index=cols)
     return res
 
+
+def score_alignment(pred_edges, truth_edges, total_length):
+    """ Computes statistics for alignment.
+
+    Parameters
+    ----------
+    pred_edges: list of tuples
+       Predicted edges.
+    truth_edges: list of tuples
+       Ground truth edges.
+    total_length : int
+       Length of the alignment
+
+    Returns
+    -------
+    tp, fp, tn, fn : ints
+       True positive, false positive, true negatives and false negatives.
+    """
+    pred_edges = set(list(map(tuple, pred_edges)))
+    truth_edges = set(list(map(tuple, truth_edges)))
+    tp = len(set(pred_edges & truth_edges))
+    fp = len(set(pred_edges - truth_edges))
+    fn = len(set(truth_edges - pred_edges))
+    # Compute the total number of possible
+    total_edges = (total_length - 1) * total_length // 2
+    tn = total_edges - tp - fp - fn
+    return tp, fp, tn, fn
+
+
 def score_group(group):
     prot_x, prot_y, edges = group
     dom_x = domdict[prot_x]
@@ -120,6 +149,7 @@ def score_group(group):
     fp = res.fp.sum()
     l = res['len'].sum()
     return prot_x, prot_y, tp, fp, l
+
 
 def is_interval(start, end, x):
     if x > start and x < end:
