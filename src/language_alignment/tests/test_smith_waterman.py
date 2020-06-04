@@ -23,7 +23,7 @@ class TestSmithWatermanAlignment(unittest.TestCase):
         # )
         X = seq2onehot('QGAQIGAMLMAIRLRG')
         Y = seq2onehot('AILKKVIQWCTHHKDD')
-        arch = 'elmo'
+        arch = 'onehot'
         cls, path = pretrained_language_models[arch]
         lm = cls(path)
         sx = lm(X)

@@ -13,6 +13,7 @@ from language_alignment import pretrained_language_models
 from language_alignment.models import AlignmentModel
 from language_alignment.layers import MeanAligner, SSAaligner, CCAaligner
 from language_alignment.losses import TripletLoss
+from language_alignment.train import LightningAligner
 
 
 def aligner_type(args):
@@ -30,14 +31,17 @@ def aligner_type(args):
 
 
 def init_model(args):
-    cls, path = pretrained_language_models[args.arch]
-    device = 'cuda' if args.gpu else 'cpu'
-    if args.lm is not None:
-        path = args.lm
-    align_fun = aligner_type(args)
-    model = AlignmentModel(aligner=align_fun, loss=TripletLoss())
-    model.load_language_model(cls, path)
-    model.to(device)
+    # cls, path = pretrained_language_models[args.arch]
+    # device = 'cuda' if args.gpu else 'cpu'
+    # if args.lm is not None:
+    #     path = args.lm
+    # align_fun = aligner_type(args)
+    # model = AlignmentModel(aligner=align_fun, loss=TripletLoss())
+    # model.load_language_model(cls, path)
+    model = LightningAligner(args)
+    model.load_state_dict(torch.load(args.model_path))
+    # model.to(device)
+    device = None
     for p in model.parameters():
         p.requires_grad = False
     return model, device

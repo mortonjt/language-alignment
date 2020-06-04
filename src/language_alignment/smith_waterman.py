@@ -1,6 +1,7 @@
 import numpy as np
 from Bio.Align import substitution_matrices
 from Bio import Align
+from scipy.spatial.distance import euclidean, cosine
 import pandas as pd
 import numba
 
@@ -16,7 +17,7 @@ def init_aligner(dm=None):
 
 
 
-def smith_waterman_language_alignment(x, y, gap=10.):
+def smith_waterman_language_alignment(x, y, gap=0):
     """ Smith Waterman using language models.
 
     Parameters
@@ -38,18 +39,28 @@ def smith_waterman_language_alignment(x, y, gap=10.):
     n = x.shape[0]
     m = y.shape[0]
     dm = np.zeros((n, m))
+    tr = {}
     for i in range(1, n):
         for j in range(1, m):
-            sij = euclidean(x[i, :], y[j, :])
-            dm[i, j] = max(
-                [
-                    dm[i, j] + sij,
-                    dm[i-1, j] - gap,
-                    dm[i, j-1] - gap
-                ]
-            )
+            sij = 1 - cosine(x[i, :], y[j, :])
+            entries = [dm[i-1, j-1] + sij,
+                       dm[i-1, j] - gap,
+                       dm[i, j-1] - gap]
+            dm[i, j] = max(entries)
+            k = np.argmax(entries)
+            idx = [(i-1, j-1), (i-1, j), (i, j-1)]
+            ti, tj = idx[k]
+            tr[(i, j)] = (ti, tj)
+    edges = traceback(tr, i, j, min(n, m))
     score = dm[-1, -1]
-    return dm, score
+    return dm, score, edges
+
+def traceback(tr, ti, tj, n):
+    edges = [(ti, tj)]
+    for _ in range(n):
+        ti, tj = tr[(ti, tj)]
+        edges.append((ti, tj))
+    return edges
 
 def pairwise_align(aligner, x, y):
     """
