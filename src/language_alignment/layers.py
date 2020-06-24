@@ -11,6 +11,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from language_alignment.losses import CCAloss
+from language_alignment.ddp.viterbi import PackedViterbi
+from language_alignment.ddp.potential import LinearPotential
 
 
 class MeanAligner(nn.Module):
@@ -54,6 +56,23 @@ class SSAaligner(nn.Module):
         a = a + b - a * b
         c = torch.sum(a * s) / torch.sum(a)
         return c
+
+5
+class ViterbiAligner(nn.Module):
+    def __init__(self, hidden_dim, tagset_size, operator='softmax',
+                 eos_idx=None, init_idx=None):
+        self.linear_potential = LinearPotential(hidden_dim, tagset_size,
+                                                eos_idx=eos_idx,
+                                                init_idx=init_idx)
+        self.viterbi = PackedViterbi(operator=operator)
+
+    def __call__(self, z_x, z_y):
+        x_scores = self.viterbi.decode(z_x)
+        y_scores = self.viterbi.decode(z_y)
+        pred = x_scores.sum(dim=3)
+        target = y_scores.sum(dim=3)
+        score = self.nllloss(pred, target)
+        return score
 
 
 class CCAaligner(nn.Module):

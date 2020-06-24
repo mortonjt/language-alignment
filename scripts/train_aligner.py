@@ -16,7 +16,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
-from language_alignment.train import LightningAlignment
+from language_alignment.train import LightningAligner
 
 
 def main(args):
